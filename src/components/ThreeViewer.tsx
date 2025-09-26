@@ -1,18 +1,40 @@
-import React, { Suspense } from 'react';
-import { Canvas } from '@react-three/fiber';
+import React, { Suspense, useRef, useEffect } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Text, Box, Environment } from '@react-three/drei';
 import { Card } from '@/components/ui/card';
+import * as THREE from 'three';
 
 interface ModelProps {
   materialColor: string;
+  geometry?: THREE.BufferGeometry;
 }
 
-const Model: React.FC<ModelProps> = ({ materialColor }) => {
+const Model: React.FC<ModelProps> = ({ materialColor, geometry }) => {
+  const meshRef = useRef<THREE.Mesh>(null);
+
+  useFrame((state) => {
+    if (meshRef.current && !geometry) {
+      // Only rotate the default box when no custom geometry is loaded
+      meshRef.current.rotation.x += 0.01;
+      meshRef.current.rotation.y += 0.01;
+    }
+  });
+
   return (
     <group>
-      <Box args={[2, 1, 1]} position={[0, 0, 0]}>
-        <meshStandardMaterial color={materialColor} roughness={0.3} metalness={0.1} />
-      </Box>
+      <mesh ref={meshRef}>
+        {geometry ? (
+          <primitive object={geometry} />
+        ) : (
+          <boxGeometry args={[2, 1, 1]} />
+        )}
+        <meshStandardMaterial 
+          color={materialColor} 
+          roughness={0.3} 
+          metalness={0.1}
+          side={THREE.DoubleSide} 
+        />
+      </mesh>
       <Text
         position={[0, -2, 0]}
         fontSize={0.3}
@@ -20,7 +42,7 @@ const Model: React.FC<ModelProps> = ({ materialColor }) => {
         anchorX="center"
         anchorY="middle"
       >
-        3D Model Preview
+        {geometry ? 'Uploaded Model' : '3D Model Preview'}
       </Text>
     </group>
   );
@@ -28,9 +50,13 @@ const Model: React.FC<ModelProps> = ({ materialColor }) => {
 
 interface ThreeViewerProps {
   materialColor?: string;
+  geometry?: THREE.BufferGeometry;
 }
 
-const ThreeViewer: React.FC<ThreeViewerProps> = ({ materialColor = "#00ccff" }) => {
+const ThreeViewer: React.FC<ThreeViewerProps> = ({ 
+  materialColor = "#00ccff", 
+  geometry 
+}) => {
   return (
     <Card className="w-full h-96 bg-gradient-tech border-border overflow-hidden">
       <div className="w-full h-full">
@@ -42,7 +68,7 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({ materialColor = "#00ccff" }) 
             <Environment preset="studio" />
             <ambientLight intensity={0.4} />
             <directionalLight position={[10, 10, 5]} intensity={1} />
-            <Model materialColor={materialColor} />
+            <Model materialColor={materialColor} geometry={geometry} />
             <OrbitControls
               enablePan={true}
               enableZoom={true}

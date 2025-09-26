@@ -5,10 +5,13 @@ import MaterialSelector from '@/components/MaterialSelector';
 import ThreeViewer from '@/components/ThreeViewer';
 import PrintSettingsComponent from '@/components/PrintSettings';
 import CostCalculator from '@/components/CostCalculator';
-import { Printer, Calculator, Palette, Settings } from 'lucide-react';
+import FileAnalysis from '@/components/FileAnalysis';
+import { Printer, Calculator, Palette, Settings, Upload } from 'lucide-react';
+import * as THREE from 'three';
 
 const Index = () => {
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
+  const [loadedGeometry, setLoadedGeometry] = useState<THREE.BufferGeometry | null>(null);
   const [printSettings, setPrintSettings] = useState<PrintSettings>({
     materialId: '',
     volume: 0,
@@ -23,6 +26,14 @@ const Index = () => {
   const handleMaterialSelect = (material: Material) => {
     setSelectedMaterial(material);
     setPrintSettings(prev => ({ ...prev, materialId: material.id }));
+  };
+
+  const handleVolumeCalculated = (volume: number) => {
+    setPrintSettings(prev => ({ ...prev, volume }));
+  };
+
+  const handleModelLoaded = (geometry: THREE.BufferGeometry) => {
+    setLoadedGeometry(geometry);
   };
 
   const getMaterialColor = () => {
@@ -74,6 +85,16 @@ const Index = () => {
             />
             
             <div className="flex items-center gap-2 mt-8 mb-4">
+              <Upload className="w-5 h-5 text-primary" />
+              <h2 className="text-xl font-semibold">File Upload & Analysis</h2>
+            </div>
+            
+            <FileAnalysis 
+              onVolumeCalculated={handleVolumeCalculated}
+              onModelLoaded={handleModelLoaded}
+            />
+            
+            <div className="flex items-center gap-2 mt-8 mb-4">
               <Settings className="w-5 h-5 text-primary" />
               <h2 className="text-xl font-semibold">Print Configuration</h2>
             </div>
@@ -89,11 +110,11 @@ const Index = () => {
             <div className="text-center">
               <h2 className="text-xl font-semibold mb-2">3D Model Preview</h2>
               <p className="text-muted-foreground text-sm">
-                Interactive 3D preview with selected material
+                {loadedGeometry ? 'Your uploaded model with selected material' : 'Interactive 3D preview with selected material'}
               </p>
             </div>
             
-            <ThreeViewer materialColor={getMaterialColor()} />
+            <ThreeViewer materialColor={getMaterialColor()} geometry={loadedGeometry} />
             
             {selectedMaterial && (
               <div className="text-center">
