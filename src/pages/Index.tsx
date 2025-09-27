@@ -6,10 +6,13 @@ import ThreeViewer from '@/components/ThreeViewer';
 import PrintSettingsComponent from '@/components/PrintSettings';
 import CostCalculator from '@/components/CostCalculator';
 import FileAnalysis from '@/components/FileAnalysis';
-import { Printer, Calculator, Palette, Settings, Upload } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { Button } from '@/components/ui/button';
+import { Printer, Calculator, Palette, Settings, Upload, LogOut, User } from 'lucide-react';
 import * as THREE from 'three';
 
 const Index = () => {
+  const { user, signOut } = useAuth();
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
   const [loadedGeometry, setLoadedGeometry] = useState<THREE.BufferGeometry | null>(null);
   const [printSettings, setPrintSettings] = useState<PrintSettings>({
@@ -36,6 +39,11 @@ const Index = () => {
     setLoadedGeometry(geometry);
   };
 
+  const handleSignOut = async () => {
+    await signOut();
+    window.location.reload();
+  };
+
   const getMaterialColor = () => {
     if (!selectedMaterial) return '#00ccff';
     
@@ -53,17 +61,34 @@ const Index = () => {
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm">
         <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <Printer className="w-8 h-8 text-primary" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Printer className="w-8 h-8 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+                  3D Print Cost Calculator
+                </h1>
+                <p className="text-muted-foreground">
+                  Calculate accurate printing costs with material properties and 3D preview
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-                3D Print Cost Calculator
-              </h1>
-              <p className="text-muted-foreground">
-                Calculate accurate printing costs with material properties and 3D preview
-              </p>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <User className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">{user?.email}</span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSignOut}
+                className="flex items-center gap-2"
+              >
+                <LogOut className="w-4 h-4" />
+                Sign Out
+              </Button>
             </div>
           </div>
         </div>
