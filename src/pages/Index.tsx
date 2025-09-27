@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Material, PrintSettings } from '@/types/materials';
 import { materials } from '@/data/materials';
 import MaterialSelector from '@/components/MaterialSelector';
@@ -12,7 +13,8 @@ import { Printer, Calculator, Palette, Settings, Upload, LogOut, User } from 'lu
 import * as THREE from 'three';
 
 const Index = () => {
-  const { user, signOut } = useAuth();
+  const { user, loading, signOut } = useAuth();
+  const navigate = useNavigate();
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
   const [loadedGeometry, setLoadedGeometry] = useState<THREE.BufferGeometry | null>(null);
   const [printSettings, setPrintSettings] = useState<PrintSettings>({
@@ -26,6 +28,12 @@ const Index = () => {
     printerPowerConsumption: 200,
   });
 
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/auth');
+    }
+  }, [user, loading, navigate]);
+
   const handleMaterialSelect = (material: Material) => {
     setSelectedMaterial(material);
     setPrintSettings(prev => ({ ...prev, materialId: material.id }));
@@ -36,12 +44,14 @@ const Index = () => {
   };
 
   const handleModelLoaded = (geometry: THREE.BufferGeometry) => {
-    setLoadedGeometry(geometry);
+    // Clone the geometry to avoid mutations affecting the original
+    const clonedGeometry = geometry.clone();
+    setLoadedGeometry(clonedGeometry);
   };
 
   const handleSignOut = async () => {
     await signOut();
-    window.location.reload();
+    navigate('/auth');
   };
 
   const getMaterialColor = () => {
@@ -55,6 +65,21 @@ const Index = () => {
       default: return '#00ccff';
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-hero flex items-center justify-center">
+        <div className="text-center">
+          <Printer className="w-12 h-12 text-primary mx-auto mb-4 animate-pulse" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null; // Will redirect to auth
+  }
 
   return (
     <div className="min-h-screen bg-gradient-hero">

@@ -20,6 +20,26 @@ const Model: React.FC<ModelProps> = ({ materialColor, geometry }) => {
     }
   });
 
+  useEffect(() => {
+    if (meshRef.current && geometry) {
+      // Center and scale the loaded geometry
+      const box = new THREE.Box3().setFromObject(meshRef.current);
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+      
+      // Center the geometry
+      geometry.translate(-center.x, -center.y, -center.z);
+      
+      // Scale to fit in a 3x3x3 box
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const scale = 3 / maxDim;
+      geometry.scale(scale, scale, scale);
+      
+      // Compute normals for proper lighting
+      geometry.computeVertexNormals();
+    }
+  }, [geometry]);
+
   return (
     <group>
       <mesh ref={meshRef}>
