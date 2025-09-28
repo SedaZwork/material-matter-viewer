@@ -13,10 +13,9 @@ const Model: React.FC<ModelProps> = ({ materialColor, geometry }) => {
   const meshRef = useRef<THREE.Mesh>(null);
 
   useFrame((state) => {
-    if (meshRef.current && !geometry) {
-      // Only rotate the default box when no custom geometry is loaded
-      meshRef.current.rotation.x += 0.01;
-      meshRef.current.rotation.y += 0.01;
+    if (meshRef.current && geometry) {
+      // Gentle rotation for uploaded models
+      meshRef.current.rotation.y += 0.005;
     }
   });
 
@@ -40,14 +39,14 @@ const Model: React.FC<ModelProps> = ({ materialColor, geometry }) => {
     }
   }, [geometry]);
 
+  if (!geometry) {
+    return null; // Don't render anything if no geometry is provided
+  }
+
   return (
     <group>
       <mesh ref={meshRef}>
-        {geometry ? (
-          <primitive object={geometry} />
-        ) : (
-          <boxGeometry args={[2, 1, 1]} />
-        )}
+        <primitive object={geometry} />
         <meshStandardMaterial 
           color={materialColor} 
           roughness={0.3} 
@@ -62,7 +61,7 @@ const Model: React.FC<ModelProps> = ({ materialColor, geometry }) => {
         anchorX="center"
         anchorY="middle"
       >
-        {geometry ? 'Uploaded Model' : '3D Model Preview'}
+        Uploaded Model
       </Text>
     </group>
   );
@@ -77,11 +76,15 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
   materialColor = "#00ccff", 
   geometry 
 }) => {
+  if (!geometry) {
+    return null; // Don't render the viewer if no geometry is provided
+  }
+
   return (
     <Card className="w-full h-96 bg-gradient-tech border-border overflow-hidden">
       <div className="w-full h-full">
         <Canvas
-          camera={{ position: [5, 5, 5], fov: 60 }}
+          camera={{ position: [3, 3, 3], fov: 60 }}
           style={{ background: 'transparent' }}
         >
           <Suspense fallback={null}>
@@ -93,8 +96,9 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
               enablePan={true}
               enableZoom={true}
               enableRotate={true}
-              minDistance={3}
-              maxDistance={15}
+              minDistance={1}
+              maxDistance={10}
+              target={[0, 0, 0]}
             />
           </Suspense>
         </Canvas>

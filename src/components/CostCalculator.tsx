@@ -8,9 +8,10 @@ import { Calculator, Zap, Clock, Package } from 'lucide-react';
 interface CostCalculatorProps {
   material: Material | null;
   settings: PrintSettings;
+  onCostCalculated?: (cost: number) => void;
 }
 
-const CostCalculator: React.FC<CostCalculatorProps> = ({ material, settings }) => {
+const CostCalculator: React.FC<CostCalculatorProps> = ({ material, settings, onCostCalculated }) => {
   const calculateCosts = (): CostBreakdown => {
     if (!material || !settings.volume) {
       return { materialCost: 0, laborCost: 0, electricityCost: 0, total: 0 };
@@ -40,6 +41,13 @@ const CostCalculator: React.FC<CostCalculatorProps> = ({ material, settings }) =
   };
 
   const costs = calculateCosts();
+  
+  // Call the callback when costs are calculated
+  React.useEffect(() => {
+    if (onCostCalculated) {
+      onCostCalculated(costs.total);
+    }
+  }, [costs.total, onCostCalculated]);
 
   const materialWeight = material && settings.volume 
     ? Math.round((settings.volume * material.density * settings.infill / 100) * 100) / 100
