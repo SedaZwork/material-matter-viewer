@@ -9,6 +9,7 @@ import CostCalculator from '@/components/CostCalculator';
 import CheckoutButton from '@/components/CheckoutButton';
 import ManufacturingOptions from '@/components/ManufacturingOptions';
 import FileAnalysis from '@/components/FileAnalysis';
+import { FabricatorRegistration } from '@/components/FabricatorRegistration';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Printer, Calculator, Palette, Settings, Upload, LogOut, User } from 'lucide-react';
@@ -116,6 +117,7 @@ const Index = () => {
                   <User className="w-4 h-4 text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">{user?.email}</span>
                 </div>
+                <FabricatorRegistration />
                 <Button
                   variant="outline"
                   size="sm"
@@ -177,6 +179,7 @@ const Index = () => {
                 <User className="w-4 h-4 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">{user?.email}</span>
               </div>
+              <FabricatorRegistration />
               <Button
                 variant="outline"
                 size="sm"
