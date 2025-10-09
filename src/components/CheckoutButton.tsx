@@ -5,19 +5,24 @@ import { Badge } from '@/components/ui/badge';
 import { CreditCard, ShoppingCart, Check } from 'lucide-react';
 import { Material, PrintSettings } from '@/types/materials';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface CheckoutButtonProps {
   material: Material | null;
   settings: PrintSettings;
   totalCost: number;
+  selectedFabricatorId: string | null;
+  finalCost: number;
 }
 
 const CheckoutButton: React.FC<CheckoutButtonProps> = ({ 
   material, 
   settings, 
-  totalCost 
+  totalCost,
+  selectedFabricatorId,
+  finalCost
 }) => {
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (!material) {
       toast.error('Please select a material first');
       return;
@@ -27,14 +32,47 @@ const CheckoutButton: React.FC<CheckoutButtonProps> = ({
       toast.error('Please upload a 3D model first');
       return;
     }
-    
-    // Show success message for demo
-    toast.success('Order placed successfully! 🎉', {
-      description: 'You will receive an email confirmation shortly.',
-    });
+
+    if (!selectedFabricatorId) {
+      toast.error('Please select a manufacturing option first');
+      return;
+    }
+
+    try {
+      // Create print job in database
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast.error('You must be logged in to place an order');
+        return;
+      }
+
+      const { error } = await supabase.from('print_jobs').insert({
+        user_id: user.id,
+        material_name: material.name,
+        volume: settings.volume,
+        infill: settings.infill,
+        supports: settings.supports,
+        estimated_print_time: settings.estimatedPrintTime,
+        base_cost: totalCost,
+        technology: 'FDM',
+        assigned_fabricator_id: selectedFabricatorId,
+        final_cost: finalCost,
+        status: 'pending'
+      });
+
+      if (error) throw error;
+
+      toast.success('Order placed successfully! 🎉', {
+        description: 'Your local manufacturer will begin production soon.',
+      });
+    } catch (error) {
+      console.error('Error placing order:', error);
+      toast.error('Failed to place order. Please try again.');
+    }
   };
 
-  const isReadyToOrder = material && settings.volume > 0;
+  const isReadyToOrder = material && settings.volume > 0 && selectedFabricatorId;
 
   return (
     <Card className="bg-card border-border">
@@ -80,9 +118,9 @@ const CheckoutButton: React.FC<CheckoutButtonProps> = ({
         
         <div className="border-t border-border pt-4">
           <div className="flex justify-between items-center mb-4">
-            <span className="text-lg font-semibold">Total Cost:</span>
+            <span className="text-lg font-semibold">Final Cost:</span>
             <Badge variant="outline" className="text-lg font-bold bg-primary/10 border-primary">
-              ${totalCost.toFixed(2)}
+              ${finalCost > 0 ? finalCost.toFixed(2) : totalCost.toFixed(2)}
             </Badge>
           </div>
           
@@ -107,7 +145,9 @@ const CheckoutButton: React.FC<CheckoutButtonProps> = ({
           
           {!isReadyToOrder && (
             <p className="text-xs text-muted-foreground text-center mt-2">
-              Upload a model and select a material to continue
+              {!material || settings.volume === 0 
+                ? 'Upload a model and select a material' 
+                : 'Select a manufacturing option'}
             </p>
           )}
         </div>

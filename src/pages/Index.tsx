@@ -7,6 +7,7 @@ import ThreeViewer from '@/components/ThreeViewer';
 import PrintSettingsComponent from '@/components/PrintSettings';
 import CostCalculator from '@/components/CostCalculator';
 import CheckoutButton from '@/components/CheckoutButton';
+import ManufacturingOptions from '@/components/ManufacturingOptions';
 import FileAnalysis from '@/components/FileAnalysis';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -19,6 +20,8 @@ const Index = () => {
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
   const [loadedGeometry, setLoadedGeometry] = useState<THREE.BufferGeometry | null>(null);
   const [totalCost, setTotalCost] = useState<number>(0);
+  const [selectedFabricatorId, setSelectedFabricatorId] = useState<string | null>(null);
+  const [finalCost, setFinalCost] = useState<number>(0);
   const [printSettings, setPrintSettings] = useState<PrintSettings>({
     materialId: '',
     volume: 0,
@@ -259,10 +262,22 @@ const Index = () => {
               onCostCalculated={handleCostCalculated}
             />
             
-            <CheckoutButton
+            <ManufacturingOptions
+              material={selectedMaterial}
+              settings={printSettings}
+              baseCost={totalCost}
+              onSelectFabricator={(fabricatorId, cost) => {
+                setSelectedFabricatorId(fabricatorId);
+                setFinalCost(cost);
+              }}
+            />
+            
+            <CheckoutButton 
               material={selectedMaterial}
               settings={printSettings}
               totalCost={totalCost}
+              selectedFabricatorId={selectedFabricatorId}
+              finalCost={finalCost}
             />
           </div>
         </div>

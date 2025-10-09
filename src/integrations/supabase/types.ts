@@ -14,6 +14,110 @@ export type Database = {
   }
   public: {
     Tables: {
+      fabricators: {
+        Row: {
+          business_name: string
+          created_at: string
+          current_capacity: number
+          id: string
+          is_active: boolean
+          location_address: string
+          location_lat: number
+          location_lng: number
+          price_multiplier: number
+          technologies: Database["public"]["Enums"]["fabricator_technology"][]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          business_name: string
+          created_at?: string
+          current_capacity?: number
+          id?: string
+          is_active?: boolean
+          location_address: string
+          location_lat: number
+          location_lng: number
+          price_multiplier?: number
+          technologies: Database["public"]["Enums"]["fabricator_technology"][]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          business_name?: string
+          created_at?: string
+          current_capacity?: number
+          id?: string
+          is_active?: boolean
+          location_address?: string
+          location_lat?: number
+          location_lng?: number
+          price_multiplier?: number
+          technologies?: Database["public"]["Enums"]["fabricator_technology"][]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      print_jobs: {
+        Row: {
+          assigned_fabricator_id: string | null
+          base_cost: number
+          created_at: string
+          estimated_print_time: number
+          final_cost: number | null
+          id: string
+          infill: number
+          material_name: string
+          status: string
+          supports: boolean
+          technology: Database["public"]["Enums"]["fabricator_technology"]
+          updated_at: string
+          user_id: string
+          volume: number
+        }
+        Insert: {
+          assigned_fabricator_id?: string | null
+          base_cost: number
+          created_at?: string
+          estimated_print_time: number
+          final_cost?: number | null
+          id?: string
+          infill: number
+          material_name: string
+          status?: string
+          supports: boolean
+          technology: Database["public"]["Enums"]["fabricator_technology"]
+          updated_at?: string
+          user_id: string
+          volume: number
+        }
+        Update: {
+          assigned_fabricator_id?: string | null
+          base_cost?: number
+          created_at?: string
+          estimated_print_time?: number
+          final_cost?: number | null
+          id?: string
+          infill?: number
+          material_name?: string
+          status?: string
+          supports?: boolean
+          technology?: Database["public"]["Enums"]["fabricator_technology"]
+          updated_at?: string
+          user_id?: string
+          volume?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "print_jobs_assigned_fabricator_id_fkey"
+            columns: ["assigned_fabricator_id"]
+            isOneToOne: false
+            referencedRelation: "fabricators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -43,10 +147,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      find_available_fabricators: {
+        Args: {
+          p_technology: Database["public"]["Enums"]["fabricator_technology"]
+          p_user_lat?: number
+          p_user_lng?: number
+        }
+        Returns: {
+          business_name: string
+          distance_km: number
+          fabricator_id: string
+          final_price_multiplier: number
+          location_address: string
+        }[]
+      }
     }
     Enums: {
-      [_ in never]: never
+      fabricator_technology: "FDM" | "SLA" | "SLS" | "MJF" | "Binder_Jetting"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -173,6 +290,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      fabricator_technology: ["FDM", "SLA", "SLS", "MJF", "Binder_Jetting"],
+    },
   },
 } as const
