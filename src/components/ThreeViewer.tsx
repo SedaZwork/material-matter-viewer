@@ -1,5 +1,5 @@
 import React, { Suspense, useRef, useEffect, useState } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Environment } from '@react-three/drei';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -63,6 +63,38 @@ const Model: React.FC<ModelProps> = ({ materialColor, geometry, scale }) => {
   );
 };
 
+// Custom zoom handler component
+const ZoomHandler = () => {
+  const { camera, gl } = useThree();
+
+  useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      // Only zoom if shift key is pressed
+      if (e.shiftKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const zoomSpeed = 0.002;
+        const delta = e.deltaY * zoomSpeed;
+        
+        if (camera instanceof THREE.PerspectiveCamera) {
+          camera.position.z = Math.max(1, Math.min(10, camera.position.z + delta));
+        }
+      }
+      // Otherwise, allow normal page scrolling
+    };
+
+    const canvas = gl.domElement;
+    canvas.addEventListener('wheel', handleWheel, { passive: false });
+    
+    return () => {
+      canvas.removeEventListener('wheel', handleWheel);
+    };
+  }, [camera, gl]);
+
+  return null;
+};
+
 interface ThreeViewerProps {
   materialColor?: string;
   geometry?: THREE.BufferGeometry;
@@ -81,6 +113,8 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
   scale
 }) => {
   const [dimensions, setDimensions] = useState<Dimensions | null>(null);
+  const [showControls, setShowControls] = useState(true);
+  const controlsRef = useRef<any>(null);
 
   useEffect(() => {
     if (geometry) {
@@ -95,6 +129,14 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
       });
     }
   }, [geometry, scale]);
+
+  // Auto-hide controls after 5 seconds
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowControls(false);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, []);
 
   if (!geometry) {
     return null;
@@ -158,6 +200,20 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
             </TooltipProvider>
           </div>
 
+          {/* Controls Cheatsheet */}
+          <div 
+            className={`absolute bottom-4 left-4 z-10 bg-card/90 backdrop-blur-sm border border-border rounded-lg p-3 text-xs space-y-2 transition-opacity duration-1000 ${
+              showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            }`}
+          >
+            <div className="font-semibold mb-2">3D Controls</div>
+            <div className="space-y-1 text-muted-foreground">
+              <div>🖱️ Left Click + Drag: Rotate</div>
+              <div>🖱️ Right Click + Drag: Pan</div>
+              <div>⇧ Shift + Scroll: Zoom In/Out</div>
+            </div>
+          </div>
+
           <Canvas
             camera={{ position: [3, 3, 3], fov: 60 }}
             style={{ background: 'transparent' }}
@@ -168,13 +224,21 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
               <directionalLight position={[10, 10, 5]} intensity={1} />
               <Model materialColor={materialColor} geometry={geometry} scale={scale} />
               <OrbitControls
+                ref={controlsRef}
                 enablePan={true}
-                enableZoom={true}
+                enableZoom={false}
                 enableRotate={true}
                 minDistance={1}
                 maxDistance={10}
                 target={[0, 0, 0]}
+                zoomSpeed={0.5}
+                mouseButtons={{
+                  LEFT: THREE.MOUSE.ROTATE,
+                  MIDDLE: THREE.MOUSE.DOLLY,
+                  RIGHT: THREE.MOUSE.PAN,
+                }}
               />
+              <ZoomHandler />
             </Suspense>
           </Canvas>
         </div>
