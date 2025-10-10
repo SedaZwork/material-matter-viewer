@@ -12,6 +12,8 @@ import FileAnalysis from '@/components/FileAnalysis';
 import { FabricatorRegistration } from '@/components/FabricatorRegistration';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Printer, Calculator, Palette, Settings, Upload, LogOut, User } from 'lucide-react';
 import * as THREE from 'three';
 
@@ -20,9 +22,11 @@ const Index = () => {
   const navigate = useNavigate();
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
   const [loadedGeometry, setLoadedGeometry] = useState<THREE.BufferGeometry | null>(null);
-  const [totalCost, setTotalCost] = useState<number>(0);
   const [selectedFabricatorId, setSelectedFabricatorId] = useState<string | null>(null);
   const [finalCost, setFinalCost] = useState<number>(0);
+  const [quantity, setQuantity] = useState<number>(1);
+  const [scale, setScale] = useState<number>(1);
+  const [volume, setVolume] = useState<number>(0);
   const [printSettings, setPrintSettings] = useState<PrintSettings>({
     materialId: '',
     volume: 0,
@@ -45,23 +49,24 @@ const Index = () => {
     setPrintSettings(prev => ({ ...prev, materialId: material.id }));
   };
 
-  const handleVolumeCalculated = (volume: number) => {
-    setPrintSettings(prev => ({ ...prev, volume }));
+  const handleVolumeCalculated = (vol: number) => {
+    setVolume(vol);
+    setPrintSettings(prev => ({ ...prev, volume: vol }));
   };
 
   const handleModelLoaded = (geometry: THREE.BufferGeometry) => {
-    // Clone the geometry to avoid mutations affecting the original
     const clonedGeometry = geometry.clone();
     setLoadedGeometry(clonedGeometry);
+  };
+
+  const scrollToManufacturing = () => {
+    const element = document.getElementById('manufacturing-section');
+    element?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const handleSignOut = async () => {
     await signOut();
     navigate('/auth');
-  };
-
-  const handleCostCalculated = (cost: number) => {
-    setTotalCost(cost);
   };
 
   const getMaterialColor = () => {
@@ -104,12 +109,12 @@ const Index = () => {
                   <Printer className="w-8 h-8 text-primary" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-                    3D Print Cost Calculator
-                  </h1>
-                  <p className="text-muted-foreground">
-                    Upload your 3D model to calculate printing costs
-                  </p>
+                <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+                  3D Printing Online Service
+                </h1>
+                <p className="text-muted-foreground">
+                  Upload your 3D model and order professional prints
+                </p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -167,10 +172,10 @@ const Index = () => {
               </div>
               <div>
                 <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-                  3D Print Cost Calculator
+                  3D Printing Online Service
                 </h1>
                 <p className="text-muted-foreground">
-                  Calculate accurate printing costs with material properties and 3D preview
+                  Professional 3D printing delivered to your door
                 </p>
               </div>
             </div>
@@ -196,79 +201,70 @@ const Index = () => {
 
       {/* Main Content with Model Loaded */}
       <main className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Left Column - 3D Viewer */}
-          <div className="space-y-6">
-            <div className="text-center">
-              <h2 className="text-xl font-semibold mb-2">3D Model Preview</h2>
-              <p className="text-muted-foreground text-sm">
-                Your uploaded model with selected material
-              </p>
-            </div>
-            
-            <ThreeViewer materialColor={getMaterialColor()} geometry={loadedGeometry} />
-            
-            {selectedMaterial && (
-              <div className="text-center">
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-card rounded-lg border border-border">
-                  <div className={`w-3 h-3 rounded-full bg-${selectedMaterial.color}`} />
-                  <span className="text-sm font-medium">{selectedMaterial.name}</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Right Column - Model Info, Materials, Settings & Checkout */}
-          <div className="space-y-6">
-            {/* Model Info */}
-            <div className="flex items-center gap-2 mb-4">
-              <Upload className="w-5 h-5 text-primary" />
-              <h2 className="text-xl font-semibold">Model Information</h2>
-            </div>
-            
-            <FileAnalysis 
-              onVolumeCalculated={handleVolumeCalculated}
-              onModelLoaded={handleModelLoaded}
-            />
-            
-            {/* Material Selection */}
-            <div className="flex items-center gap-2 mb-4">
-              <Palette className="w-5 h-5 text-primary" />
-              <h2 className="text-xl font-semibold">Material Selection</h2>
-            </div>
-            
-            <MaterialSelector
+        <div className="max-w-7xl mx-auto space-y-8">
+          {/* 3D Viewer Section */}
+          <div className="space-y-4">
+            <ThreeViewer 
+              materialColor={getMaterialColor()} 
+              geometry={loadedGeometry}
+              materials={materials}
               selectedMaterial={selectedMaterial}
               onMaterialSelect={handleMaterialSelect}
+              scale={scale}
             />
             
-            {/* Print Settings */}
-            <div className="flex items-center gap-2 mb-4">
-              <Settings className="w-5 h-5 text-primary" />
-              <h2 className="text-xl font-semibold">Print Configuration</h2>
+            {/* Controls Below Viewer */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto">
+              <div className="space-y-2">
+                <Label htmlFor="quantity">Quantity</Label>
+                <Input
+                  id="quantity"
+                  type="number"
+                  min="1"
+                  value={quantity}
+                  onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="scale">Scale ({scale.toFixed(2)}x)</Label>
+                <Input
+                  id="scale"
+                  type="range"
+                  min="0.1"
+                  max="3"
+                  step="0.1"
+                  value={scale}
+                  onChange={(e) => setScale(parseFloat(e.target.value))}
+                />
+              </div>
+              
+              <div className="flex items-end">
+                <Button 
+                  className="w-full" 
+                  size="lg"
+                  onClick={scrollToManufacturing}
+                  disabled={!selectedMaterial}
+                >
+                  Continue to Checkout
+                </Button>
+              </div>
             </div>
-            
-            <PrintSettingsComponent
-              settings={printSettings}
-              onSettingsChange={setPrintSettings}
-            />
-            
-            {/* Cost Calculator & Checkout */}
-            <div className="flex items-center gap-2 mb-4">
-              <Calculator className="w-5 h-5 text-primary" />
-              <h2 className="text-xl font-semibold">Cost & Checkout</h2>
+          </div>
+
+          {/* Manufacturing Options Section */}
+          <div id="manufacturing-section" className="space-y-6 pt-8">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-semibold mb-2">Choose Your Manufacturer</h2>
+              <p className="text-muted-foreground">
+                Supporting local production for a sustainable future
+              </p>
             </div>
-            
-            <CostCalculator
-              material={selectedMaterial}
-              settings={printSettings}
-              onCostCalculated={handleCostCalculated}
-            />
             
             <ManufacturingOptions
               material={selectedMaterial}
               settings={printSettings}
-              baseCost={totalCost}
+              baseCost={volume * (selectedMaterial?.costPerKg || 0) * (selectedMaterial?.density || 0) * scale * scale * scale / 1000}
               onSelectFabricator={(fabricatorId, cost) => {
                 setSelectedFabricatorId(fabricatorId);
                 setFinalCost(cost);
@@ -278,9 +274,10 @@ const Index = () => {
             <CheckoutButton 
               material={selectedMaterial}
               settings={printSettings}
-              totalCost={totalCost}
               selectedFabricatorId={selectedFabricatorId}
               finalCost={finalCost}
+              quantity={quantity}
+              scale={scale}
             />
           </div>
         </div>
