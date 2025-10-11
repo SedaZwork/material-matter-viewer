@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Printing Online Service - WordPress Integration</title>
+    <style>
+        /* WordPress Integration Styles */
+        .printing-service-container {
+            width: 100%;
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 0;
+        }
+
+        .printing-service-iframe {
+            width: 100%;
+            min-height: 100vh;
+            border: none;
+            display: block;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .printing-service-iframe {
+                min-height: 80vh;
+            }
+        }
+
+        /* Loading state */
+        .printing-service-loader {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 400px;
+            font-family: Arial, sans-serif;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <!-- WordPress Shortcode Usage Instructions -->
+    <!-- 
+    To integrate this 3D printing service into your WordPress site:
+    
+    1. Add this HTML file to your WordPress theme's assets folder
+    2. Use the shortcode in any WordPress page/post:
+       [3d_printing_service]
+    
+    3. Add this to your theme's functions.php:
+    -->
+    
+    <div class="printing-service-container">
+        <div class="printing-service-loader" id="loader">
+            Loading 3D Printing Service...
+        </div>
+        <iframe 
+            id="printingServiceFrame"
+            class="printing-service-iframe" 
+            src="YOUR_APP_URL_HERE"
+            title="3D Printing Online Service"
+            allow="camera; geolocation"
+            loading="lazy"
+            style="display: none;"
+        ></iframe>
+    </div>
+
+    <script>
+        // Handle iframe loading
+        const iframe = document.getElementById('printingServiceFrame');
+        const loader = document.getElementById('loader');
+        
+        iframe.addEventListener('load', function() {
+            loader.style.display = 'none';
+            iframe.style.display = 'block';
+        });
+
+        // Handle responsive height
+        window.addEventListener('message', function(e) {
+            if (e.data && e.data.type === 'resize') {
+                iframe.style.height = e.data.height + 'px';
+            }
+        });
+
+        // Auto-adjust iframe height based on content
+        function adjustIframeHeight() {
+            try {
+                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                if (iframeDoc && iframeDoc.body) {
+                    const height = iframeDoc.body.scrollHeight;
+                    iframe.style.height = height + 'px';
+                }
+            } catch(e) {
+                // Cross-origin restriction - height will be managed by postMessage
+            }
+        }
+
+        setInterval(adjustIframeHeight, 1000);
+    </script>
+</body>
+</html>

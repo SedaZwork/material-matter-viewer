@@ -16,6 +16,9 @@ export type Database = {
     Tables: {
       fabricators: {
         Row: {
+          build_volume_x: number
+          build_volume_y: number
+          build_volume_z: number
           business_name: string
           created_at: string
           current_capacity: number
@@ -30,6 +33,9 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          build_volume_x?: number
+          build_volume_y?: number
+          build_volume_z?: number
           business_name: string
           created_at?: string
           current_capacity?: number
@@ -44,6 +50,9 @@ export type Database = {
           user_id: string
         }
         Update: {
+          build_volume_x?: number
+          build_volume_y?: number
+          build_volume_z?: number
           business_name?: string
           created_at?: string
           current_capacity?: number

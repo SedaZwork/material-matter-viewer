@@ -34,6 +34,9 @@ export const FabricatorRegistration = () => {
     cif: '',
     capacity: 100,
     priceMultiplier: 1.0,
+    buildVolumeX: 200,
+    buildVolumeY: 200,
+    buildVolumeZ: 200,
   });
   
   const [selectedTechnologies, setSelectedTechnologies] = useState<Technology[]>([]);
@@ -116,6 +119,9 @@ export const FabricatorRegistration = () => {
           technologies: selectedTechnologies,
           current_capacity: formData.capacity,
           price_multiplier: formData.priceMultiplier,
+          build_volume_x: formData.buildVolumeX,
+          build_volume_y: formData.buildVolumeY,
+          build_volume_z: formData.buildVolumeZ,
         });
 
       if (error) throw error;
@@ -134,6 +140,9 @@ export const FabricatorRegistration = () => {
         cif: '',
         capacity: 100,
         priceMultiplier: 1.0,
+        buildVolumeX: 200,
+        buildVolumeY: 200,
+        buildVolumeZ: 200,
       });
       setSelectedTechnologies([]);
       setOpen(false);
@@ -248,6 +257,45 @@ export const FabricatorRegistration = () => {
               <p className="text-xs text-muted-foreground mt-1">
                 1.0 = base price, higher values increase your pricing
               </p>
+            </div>
+
+            <div className="col-span-2">
+              <Label className="mb-3 block">Build Volume (mm) *</Label>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label htmlFor="buildVolumeX" className="text-xs">Width (X)</Label>
+                  <Input
+                    id="buildVolumeX"
+                    type="number"
+                    min="50"
+                    value={formData.buildVolumeX}
+                    onChange={(e) => setFormData({ ...formData, buildVolumeX: parseInt(e.target.value) })}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="buildVolumeY" className="text-xs">Height (Y)</Label>
+                  <Input
+                    id="buildVolumeY"
+                    type="number"
+                    min="50"
+                    value={formData.buildVolumeY}
+                    onChange={(e) => setFormData({ ...formData, buildVolumeY: parseInt(e.target.value) })}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="buildVolumeZ" className="text-xs">Depth (Z)</Label>
+                  <Input
+                    id="buildVolumeZ"
+                    type="number"
+                    min="50"
+                    value={formData.buildVolumeZ}
+                    onChange={(e) => setFormData({ ...formData, buildVolumeZ: parseInt(e.target.value) })}
+                    required
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="col-span-2">

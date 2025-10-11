@@ -13,12 +13,23 @@ interface Fabricator {
   distance_km: number | null;
   final_price_multiplier: number;
   location_address: string;
+  build_volume_x: number;
+  build_volume_y: number;
+  build_volume_z: number;
+}
+
+interface Dimensions {
+  width: number;
+  height: number;
+  depth: number;
 }
 
 interface ManufacturingOptionsProps {
   material: Material | null;
   settings: PrintSettings;
   baseCost: number;
+  dimensions: Dimensions | null;
+  scale: number;
   onSelectFabricator?: (fabricatorId: string, finalCost: number) => void;
 }
 
@@ -26,11 +37,13 @@ const ManufacturingOptions: React.FC<ManufacturingOptionsProps> = ({
   material,
   settings,
   baseCost,
+  dimensions,
+  scale,
   onSelectFabricator,
 }) => {
   const [fabricators, setFabricators] = useState<Fabricator[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedOption, setSelectedOption] = useState<'cheapest' | 'random' | 'local' | null>(null);
+  const [selectedFabricator, setSelectedFabricator] = useState<Fabricator | null>(null);
 
   useEffect(() => {
     if (material && settings.volume > 0) {
@@ -39,21 +52,56 @@ const ManufacturingOptions: React.FC<ManufacturingOptionsProps> = ({
   }, [material, settings.volume]);
 
   const fetchFabricators = async () => {
+    if (!dimensions) return;
+    
     setLoading(true);
     try {
-      // Get user's location (for demo, using default coordinates)
-      // In production, you'd want to get actual user location
-      const userLat = 40.7128; // New York as example
+      // Get user's location
+      const userLat = 40.7128;
       const userLng = -74.0060;
 
-      const { data, error } = await supabase.rpc('find_available_fabricators', {
-        p_technology: 'FDM', // Default to FDM, could be based on material
-        p_user_lat: userLat,
-        p_user_lng: userLng,
-      });
+      const { data, error } = await supabase
+        .from('fabricators')
+        .select('id, business_name, location_address, location_lat, location_lng, price_multiplier, build_volume_x, build_volume_y, build_volume_z')
+        .eq('is_active', true)
+        .gte('current_capacity', 20);
 
       if (error) throw error;
-      setFabricators(data || []);
+      
+      // Filter fabricators by build volume
+      const scaledDimensions = {
+        width: dimensions.width * scale,
+        height: dimensions.height * scale,
+        depth: dimensions.depth * scale,
+      };
+      
+      const compatibleFabricators = (data || []).filter((fab: any) => 
+        fab.build_volume_x >= scaledDimensions.width &&
+        fab.build_volume_y >= scaledDimensions.height &&
+        fab.build_volume_z >= scaledDimensions.depth
+      ).map((fab: any) => {
+        // Calculate distance
+        const distance = Math.round(
+          6371 * Math.acos(
+            Math.cos(userLat * Math.PI / 180) * Math.cos(fab.location_lat * Math.PI / 180) *
+            Math.cos((fab.location_lng - userLng) * Math.PI / 180) +
+            Math.sin(userLat * Math.PI / 180) * Math.sin(fab.location_lat * Math.PI / 180)
+          ) * 100
+        ) / 100;
+        
+        return {
+          fabricator_id: fab.id,
+          business_name: fab.business_name,
+          location_address: fab.location_address,
+          distance_km: distance,
+          final_price_multiplier: fab.price_multiplier,
+          build_volume_x: fab.build_volume_x,
+          build_volume_y: fab.build_volume_y,
+          build_volume_z: fab.build_volume_z,
+        };
+      });
+      
+      setFabricators(compatibleFabricators);
     } catch (error) {
       console.error('Error fetching fabricators:', error);
       toast.error('Failed to load manufacturing options');
@@ -83,77 +131,40 @@ const ManufacturingOptions: React.FC<ManufacturingOptionsProps> = ({
     );
   };
 
-  const handleSelectOption = (type: 'cheapest' | 'random' | 'local', fabricator: Fabricator | null) => {
+  const handleSelectOption = (fabricator: Fabricator | null) => {
     if (!fabricator) return;
-    setSelectedOption(type);
+    setSelectedFabricator(fabricator);
     const finalCost = baseCost * fabricator.final_price_multiplier;
     if (onSelectFabricator) {
       onSelectFabricator(fabricator.fabricator_id, finalCost);
     }
-    toast.success(`Selected ${type} manufacturing option`);
   };
 
   const cheapest = getCheapestOption();
   const random = getRandomOption();
   const local = getLocalOption();
 
-  if (!material || settings.volume === 0) {
-    return (
-      <Card className="bg-card border-border">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Factory className="w-5 h-5 text-primary" />
-            Manufacturing Options
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center text-muted-foreground py-8">
-            <Factory className="w-8 h-8 mx-auto mb-2 opacity-50" />
-            <p>Upload a model and select material to see manufacturing options</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
+  if (!material || settings.volume === 0 || !dimensions) {
+    return null;
   }
 
   if (loading) {
     return (
-      <Card className="bg-card border-border">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Factory className="w-5 h-5 text-primary" />
-            Manufacturing Options
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center text-muted-foreground py-8">
-            <Zap className="w-8 h-8 mx-auto mb-2 animate-pulse" />
-            <p>Finding available manufacturers...</p>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="text-center text-muted-foreground py-8">
+        <Zap className="w-8 h-8 mx-auto mb-2 animate-pulse" />
+        <p>Finding available manufacturers...</p>
+      </div>
     );
   }
 
-  return (
-    <Card className="bg-card border-border">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Factory className="w-5 h-5 text-primary" />
-          Manufacturing Options
-        </CardTitle>
-        <p className="text-sm text-muted-foreground mt-2">
-          Support local manufacturing and reduce carbon footprint
-        </p>
-      </CardHeader>
-      <CardContent className="space-y-4">
+  if (!selectedFabricator) {
+    return (
+      <div className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Cheapest Option */}
           <div
-            className={`border rounded-lg p-4 cursor-pointer transition-all hover:border-primary ${
-              selectedOption === 'cheapest' ? 'border-primary bg-primary/5' : 'border-border'
-            }`}
-            onClick={() => handleSelectOption('cheapest', cheapest)}
+            className="border rounded-lg p-4 cursor-pointer transition-all hover:border-primary hover:bg-primary/5"
+            onClick={() => handleSelectOption(cheapest)}
           >
             <div className="flex items-center gap-2 mb-3">
               <DollarSign className="w-5 h-5 text-green-500" />
@@ -163,7 +174,7 @@ const ManufacturingOptions: React.FC<ManufacturingOptionsProps> = ({
               <>
                 <p className="text-sm text-muted-foreground mb-2">{cheapest.business_name}</p>
                 <Badge variant="outline" className="mb-2">
-                  ${(baseCost * cheapest.final_price_multiplier).toFixed(2)}
+                  €{(baseCost * cheapest.final_price_multiplier).toFixed(2)}
                 </Badge>
                 <p className="text-xs text-muted-foreground">{cheapest.location_address}</p>
               </>
@@ -174,10 +185,8 @@ const ManufacturingOptions: React.FC<ManufacturingOptionsProps> = ({
 
           {/* Random Option */}
           <div
-            className={`border rounded-lg p-4 cursor-pointer transition-all hover:border-primary ${
-              selectedOption === 'random' ? 'border-primary bg-primary/5' : 'border-border'
-            }`}
-            onClick={() => handleSelectOption('random', random)}
+            className="border rounded-lg p-4 cursor-pointer transition-all hover:border-primary hover:bg-primary/5"
+            onClick={() => handleSelectOption(random)}
           >
             <div className="flex items-center gap-2 mb-3">
               <Zap className="w-5 h-5 text-yellow-500" />
@@ -187,7 +196,7 @@ const ManufacturingOptions: React.FC<ManufacturingOptionsProps> = ({
               <>
                 <p className="text-sm text-muted-foreground mb-2">{random.business_name}</p>
                 <Badge variant="outline" className="mb-2">
-                  ${(baseCost * random.final_price_multiplier).toFixed(2)}
+                  €{(baseCost * random.final_price_multiplier).toFixed(2)}
                 </Badge>
                 <p className="text-xs text-muted-foreground">{random.location_address}</p>
               </>
@@ -198,20 +207,18 @@ const ManufacturingOptions: React.FC<ManufacturingOptionsProps> = ({
 
           {/* Local Best Option */}
           <div
-            className={`border rounded-lg p-4 cursor-pointer transition-all hover:border-primary ${
-              selectedOption === 'local' ? 'border-primary bg-primary/5' : 'border-border'
-            }`}
-            onClick={() => handleSelectOption('local', local)}
+            className="border rounded-lg p-4 cursor-pointer transition-all hover:border-primary hover:bg-primary/5"
+            onClick={() => handleSelectOption(local)}
           >
             <div className="flex items-center gap-2 mb-3">
               <Leaf className="w-5 h-5 text-green-600" />
-              <h3 className="font-semibold">Local Best</h3>
+              <h3 className="font-semibold">Local & Sustainable</h3>
             </div>
             {local ? (
               <>
                 <p className="text-sm text-muted-foreground mb-2">{local.business_name}</p>
                 <Badge variant="outline" className="mb-2">
-                  ${(baseCost * local.final_price_multiplier).toFixed(2)}
+                  €{(baseCost * local.final_price_multiplier).toFixed(2)}
                 </Badge>
                 <div className="flex items-center gap-1 text-xs text-green-600 mb-1">
                   <MapPin className="w-3 h-3" />
@@ -224,24 +231,48 @@ const ManufacturingOptions: React.FC<ManufacturingOptionsProps> = ({
             )}
           </div>
         </div>
+      </div>
+    );
+  }
 
-        {/* Ecological Benefits */}
-        <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mt-4">
-          <div className="flex items-start gap-3">
-            <Leaf className="w-5 h-5 text-green-600 mt-0.5" />
+  // Show checkout section when fabricator is selected
+  return (
+    <Card className="bg-card border-border">
+      <CardContent className="p-8">
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
             <div>
-              <h4 className="font-semibold text-green-900 dark:text-green-100 mb-1">
-                Choose Local, Choose Sustainable
-              </h4>
-              <p className="text-sm text-green-700 dark:text-green-300">
-                Local manufacturing reduces transportation emissions and supports your community's economy.
-                {local && local.distance_km && (
-                  <span className="block mt-1">
-                    Save approximately {(local.distance_km * 0.21).toFixed(1)} kg of CO₂ by choosing local!
-                  </span>
-                )}
-              </p>
+              <h3 className="text-2xl font-bold">Total Price</h3>
+              <p className="text-muted-foreground">Manufacturing by {selectedFabricator.business_name}</p>
             </div>
+            <div className="text-right">
+              <div className="text-4xl font-bold text-primary">
+                €{(baseCost * selectedFabricator.final_price_multiplier).toFixed(2)}
+              </div>
+            </div>
+          </div>
+          
+          <div className="border-t pt-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+              <MapPin className="w-4 h-4" />
+              <span>{selectedFabricator.location_address}</span>
+            </div>
+            {selectedFabricator.distance_km && (
+              <div className="flex items-center gap-2 text-sm text-green-600">
+                <Leaf className="w-4 h-4" />
+                <span>{selectedFabricator.distance_km} km away - Saving ~{(selectedFabricator.distance_km * 0.21).toFixed(1)} kg CO₂</span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-3">
+            <Button 
+              variant="outline" 
+              className="flex-1"
+              onClick={() => setSelectedFabricator(null)}
+            >
+              Change Manufacturer
+            </Button>
           </div>
         </div>
       </CardContent>

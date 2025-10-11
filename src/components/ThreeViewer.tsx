@@ -3,6 +3,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Environment } from '@react-three/drei';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Material } from '@/types/materials';
 import * as THREE from 'three';
@@ -102,6 +103,8 @@ interface ThreeViewerProps {
   selectedMaterial: Material | null;
   onMaterialSelect: (material: Material) => void;
   scale: number;
+  onScaleChange: (scale: number) => void;
+  dimensions?: Dimensions | null;
 }
 
 const ThreeViewer: React.FC<ThreeViewerProps> = ({ 
@@ -110,10 +113,13 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
   materials,
   selectedMaterial,
   onMaterialSelect,
-  scale
+  scale,
+  onScaleChange,
+  dimensions: externalDimensions
 }) => {
   const [dimensions, setDimensions] = useState<Dimensions | null>(null);
   const [showControls, setShowControls] = useState(true);
+  const [scaleInput, setScaleInput] = useState(scale.toString());
   const controlsRef = useRef<any>(null);
 
   useEffect(() => {
@@ -129,6 +135,10 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
       });
     }
   }, [geometry, scale]);
+
+  useEffect(() => {
+    setScaleInput(scale.toFixed(2));
+  }, [scale]);
 
   // Auto-hide controls after 5 seconds
   useEffect(() => {
@@ -152,19 +162,52 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
     }
   };
 
+  const handleScaleInputChange = (value: string) => {
+    setScaleInput(value);
+    const numValue = parseFloat(value);
+    if (!isNaN(numValue) && numValue > 0) {
+      onScaleChange(numValue);
+    }
+  };
+
   return (
     <div className="relative">
       <Card className="w-full h-[600px] bg-gradient-tech border-border overflow-hidden">
         <div className="w-full h-full relative">
-          {/* Dimensions Display */}
+          {/* Dimensions Display - Top Center */}
           {dimensions && (
-            <div className="absolute top-4 left-4 z-10 bg-card/90 backdrop-blur-sm border border-border rounded-lg p-3 text-xs space-y-1">
-              <div className="font-semibold mb-1">Object Size</div>
-              <div>W: {dimensions.width.toFixed(1)} mm</div>
-              <div>H: {dimensions.height.toFixed(1)} mm</div>
-              <div>D: {dimensions.depth.toFixed(1)} mm</div>
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-card/90 backdrop-blur-sm border border-border rounded-lg p-3 text-xs">
+              <div className="flex items-center gap-4">
+                <div>
+                  <div className="text-muted-foreground text-[10px]">Width</div>
+                  <div className="font-semibold">{dimensions.width.toFixed(1)} mm</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground text-[10px]">Height</div>
+                  <div className="font-semibold">{dimensions.height.toFixed(1)} mm</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground text-[10px]">Depth</div>
+                  <div className="font-semibold">{dimensions.depth.toFixed(1)} mm</div>
+                </div>
+              </div>
             </div>
           )}
+
+          {/* Scale Input - Top Left */}
+          <div className="absolute top-4 left-4 z-10 bg-card/90 backdrop-blur-sm border border-border rounded-lg p-3">
+            <div className="text-xs font-semibold mb-2">Scale</div>
+            <Input
+              type="number"
+              step="0.01"
+              min="0.01"
+              value={scaleInput}
+              onChange={(e) => handleScaleInputChange(e.target.value)}
+              className="w-24 h-8 text-xs"
+              placeholder="1.0"
+            />
+            <div className="text-[10px] text-muted-foreground mt-1">Current: {scale.toFixed(2)}x</div>
+          </div>
 
           {/* Material Toolbar */}
           <div className="absolute top-4 right-4 z-10 bg-card/90 backdrop-blur-sm border border-border rounded-lg p-2 space-y-2">

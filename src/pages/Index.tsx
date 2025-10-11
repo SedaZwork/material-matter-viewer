@@ -23,8 +23,14 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Printer, Calculator, Palette, Settings, Upload, LogOut, User } from 'lucide-react';
+import { Printer, Calculator, Palette, Settings, Upload, LogOut, User, ShoppingCart } from 'lucide-react';
 import * as THREE from 'three';
+
+interface Dimensions {
+  width: number;
+  height: number;
+  depth: number;
+}
 
 const Index = () => {
   const { user, loading, signOut } = useAuth();
@@ -36,6 +42,7 @@ const Index = () => {
   const [quantity, setQuantity] = useState<number>(1);
   const [scale, setScale] = useState<number>(1);
   const [volume, setVolume] = useState<number>(0);
+  const [dimensions, setDimensions] = useState<Dimensions | null>(null);
   const [printSettings, setPrintSettings] = useState<PrintSettings>({
     materialId: '',
     volume: 0,
@@ -56,6 +63,12 @@ const Index = () => {
   const handleMaterialSelect = (material: Material) => {
     setSelectedMaterial(material);
     setPrintSettings(prev => ({ ...prev, materialId: material.id }));
+    
+    // Auto scroll to quantity and checkout
+    setTimeout(() => {
+      const element = document.getElementById('checkout-controls');
+      element?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 300);
   };
 
   const handleVolumeCalculated = (vol: number) => {
@@ -66,6 +79,17 @@ const Index = () => {
   const handleModelLoaded = (geometry: THREE.BufferGeometry) => {
     const clonedGeometry = geometry.clone();
     setLoadedGeometry(clonedGeometry);
+    
+    // Calculate dimensions
+    const box = new THREE.Box3().setFromBufferAttribute(
+      geometry.attributes.position as THREE.BufferAttribute
+    );
+    const size = box.getSize(new THREE.Vector3());
+    setDimensions({
+      width: size.x,
+      height: size.y,
+      depth: size.z,
+    });
   };
 
   const scrollToManufacturing = () => {
@@ -240,10 +264,12 @@ const Index = () => {
               selectedMaterial={selectedMaterial}
               onMaterialSelect={handleMaterialSelect}
               scale={scale}
+              onScaleChange={setScale}
+              dimensions={dimensions}
             />
             
-            {/* Controls Below Viewer */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto">
+            {/* Quantity and Checkout Below Viewer */}
+            <div id="checkout-controls" className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
               <div className="space-y-2">
                 <Label htmlFor="quantity">Quantity</Label>
                 <Input
@@ -252,29 +278,18 @@ const Index = () => {
                   min="1"
                   value={quantity}
                   onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="scale">Scale ({scale.toFixed(2)}x)</Label>
-                <Input
-                  id="scale"
-                  type="range"
-                  min="0.1"
-                  max="3"
-                  step="0.1"
-                  value={scale}
-                  onChange={(e) => setScale(parseFloat(e.target.value))}
+                  className="h-12 text-lg"
                 />
               </div>
               
               <div className="flex items-end">
                 <Button 
-                  className="w-full" 
+                  className="w-full h-12" 
                   size="lg"
                   onClick={scrollToManufacturing}
                   disabled={!selectedMaterial}
                 >
+                  <ShoppingCart className="w-5 h-5 mr-2" />
                   Continue to Checkout
                 </Button>
               </div>
@@ -282,32 +297,30 @@ const Index = () => {
           </div>
 
           {/* Manufacturing Options Section */}
-          <div id="manufacturing-section" className="space-y-6 pt-8">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-semibold mb-2">Choose Your Manufacturer</h2>
-              <p className="text-muted-foreground">
-                Supporting local production for a sustainable future
-              </p>
-            </div>
+          <div id="manufacturing-section" className="space-y-4 pt-4">
             
             <ManufacturingOptions
               material={selectedMaterial}
               settings={printSettings}
               baseCost={volume * (selectedMaterial?.costPerKg || 0) * (selectedMaterial?.density || 0) * scale * scale * scale / 1000}
+              dimensions={dimensions}
+              scale={scale}
               onSelectFabricator={(fabricatorId, cost) => {
                 setSelectedFabricatorId(fabricatorId);
                 setFinalCost(cost);
               }}
             />
             
-            <CheckoutButton 
-              material={selectedMaterial}
-              settings={printSettings}
-              selectedFabricatorId={selectedFabricatorId}
-              finalCost={finalCost}
-              quantity={quantity}
-              scale={scale}
-            />
+            {selectedFabricatorId && (
+              <CheckoutButton 
+                material={selectedMaterial}
+                settings={printSettings}
+                selectedFabricatorId={selectedFabricatorId}
+                finalCost={finalCost}
+                quantity={quantity}
+                scale={scale}
+              />
+            )}
           </div>
         </div>
       </main>
