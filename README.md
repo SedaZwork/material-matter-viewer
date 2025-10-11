@@ -1,73 +1,37 @@
-# Welcome to your Lovable project
+# 3D Printing Service - WordPress Integration
 
-## Project info
+This document provides instructions on how to integrate the 3D printing React application into your WordPress website.
 
-**URL**: https://lovable.dev/projects/c11bd4bd-f9ae-4341-bf43-5788f7f5b312
+## Files
 
-## How can I edit this code?
+This project includes the following files for WordPress integration:
 
-There are several ways of editing your application.
+- `dist/`: This directory contains the built static files (HTML, CSS, JavaScript) of the React application.
+- `react-wordpress-integration.php`: This is a WordPress plugin that creates a shortcode to embed the React app.
 
-**Use Lovable**
+## Integration Steps
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/c11bd4bd-f9ae-4341-bf43-5788f7f5b312) and start prompting.
+1. **Place the Files in Your WordPress Installation:**
+   - Create a new folder named `react-app` inside your WordPress `wp-content/plugins/` directory.
+   - Copy the `dist/` directory and the `react-wordpress-integration.php` file into this new `react-app` folder.
 
-Changes made via Lovable will be committed automatically to this repo.
+2. **Activate the Plugin:**
+   - Log in to your WordPress admin dashboard.
+   - Go to **Plugins > Installed Plugins**.
+   - Find "React WordPress Integration" in the list and click **Activate**.
 
-**Use your preferred IDE**
+3. **Embed the App on a Page:**
+   - Create a new page or edit an existing one where you want to display the 3D printing app.
+   - In the page editor, add a new Shortcode block.
+   - Enter the following shortcode into the block: `[react_app]`
+   - Save or publish the page.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+4. **Verify the Integration:**
+   - View the page on your live site. The 3D printing application should now be displayed.
+   - The app will automatically use the logged-in WordPress user's information for authentication.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## How It Works
 
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/c11bd4bd-f9ae-4341-bf43-5788f7f5b312) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- The `react-wordpress-integration.php` file defines a shortcode `[react_app]` that loads the necessary CSS and JavaScript files from the `dist/` directory.
+- It also passes the current WordPress user's data (ID and email) to the React application via the `window.wordpressUser` JavaScript object.
+- The React app's `useAuth` hook has been modified to read this `window.wordpressUser` object, creating a seamless authentication experience between WordPress and the React app.

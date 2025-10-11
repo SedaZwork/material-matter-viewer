@@ -1,65 +1,54 @@
 import { useState, useEffect } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
+
+// Define a user type that matches the expected data from WordPress
+interface WordpressUser {
+  id: number;
+  email: string;
+  // Add other fields you might pass from WordPress
+}
+
+// This is a placeholder for the user data that will be injected by WordPress
+// We'll access it from the window object
+declare global {
+  interface Window {
+    wordpressUser?: WordpressUser;
+  }
+}
 
 export const useAuth = () => {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<WordpressUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
+    const handleUserReady = () => {
+      if (window.wordpressUser) {
+        setUser(window.wordpressUser);
       }
-    );
-
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
       setLoading(false);
-    });
+    };
 
-    return () => subscription.unsubscribe();
+    // Check for user data immediately
+    handleUserReady();
+
+    // Listen for a custom event that signals user data is ready
+    window.addEventListener('wordpressUserReady', handleUserReady);
+
+    return () => {
+      window.removeEventListener('wordpressUserReady', handleUserReady);
+    };
   }, []);
 
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-    return { error };
-  };
-
-  const signUp = async (email: string, password: string, displayName?: string) => {
-    const redirectUrl = `${window.location.origin}/`;
-    
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: displayName ? { display_name: displayName } : {}
-      }
-    });
-    return { error };
-  };
-
+  // Sign-in and sign-up are handled by WordPress, so these functions are no longer needed.
+  // The signOut function will redirect to the WordPress logout URL.
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    return { error };
+    // Redirect to the WordPress logout URL.
+    // You might need to configure this URL in your WordPress settings.
+    window.location.href = '/wp-login.php?action=logout';
   };
 
   return {
     user,
-    session,
     loading,
-    signIn,
-    signUp,
     signOut
   };
 };
