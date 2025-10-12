@@ -11,11 +11,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CreditCard, Wallet, Bitcoin } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface PaymentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   totalAmount: number;
+  orderId?: string;
   onPaymentComplete: (paymentMethod: string, details: any) => void;
 }
 
@@ -23,6 +25,7 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({
   open,
   onOpenChange,
   totalAmount,
+  orderId,
   onPaymentComplete,
 }) => {
   const { toast } = useToast();
@@ -57,21 +60,49 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({
       return;
     }
 
-    // Simulate payment processing
-    toast({
-      title: "Processing Payment",
-      description: `Processing ${selectedMethod} payment...`,
-    });
-
-    // In a real app, this would integrate with actual payment APIs
-    setTimeout(() => {
+    try {
       toast({
-        title: "Payment Successful!",
-        description: `Your order has been confirmed via ${selectedMethod}`,
+        title: "Processing Payment",
+        description: `Redirecting to ${selectedMethod} checkout...`,
       });
-      onPaymentComplete(selectedMethod, customerDetails);
-      onOpenChange(false);
-    }, 2000);
+
+      if (selectedMethod === 'stripe') {
+        // Redirect to Stripe Checkout
+        const { data, error } = await supabase.functions.invoke('create-payment', {
+          body: {
+            amount: totalAmount,
+            orderId: orderId,
+            paymentMethod: 'stripe'
+          }
+        });
+
+        if (error) throw error;
+        if (data?.url) {
+          window.open(data.url, '_blank');
+          onPaymentComplete(selectedMethod, customerDetails);
+          onOpenChange(false);
+        }
+      } else if (selectedMethod === 'paypal') {
+        // PayPal integration would go here
+        toast({
+          title: "PayPal Integration",
+          description: "Please connect your PayPal business account in the integration settings.",
+        });
+      } else if (selectedMethod === 'bitcoin') {
+        // Bitcoin payment would go here
+        toast({
+          title: "Bitcoin Payment",
+          description: "Bitcoin payment integration coming soon.",
+        });
+      }
+    } catch (error) {
+      console.error('Payment error:', error);
+      toast({
+        title: "Payment Failed",
+        description: "There was an error processing your payment. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   return (

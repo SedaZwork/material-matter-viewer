@@ -95,6 +95,7 @@ const CheckoutButton: React.FC<CheckoutButtonProps> = ({
         open={showPaymentDialog}
         onOpenChange={setShowPaymentDialog}
         totalAmount={finalCost * quantity}
+        orderId={undefined}
         onPaymentComplete={handlePaymentComplete}
       />
     </>
