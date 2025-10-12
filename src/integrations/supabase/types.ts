@@ -129,23 +129,35 @@ export type Database = {
       }
       profiles: {
         Row: {
+          country: string | null
           created_at: string
           display_name: string | null
           id: string
+          location_lat: number | null
+          location_lng: number | null
+          postal_code: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          country?: string | null
           created_at?: string
           display_name?: string | null
           id?: string
+          location_lat?: number | null
+          location_lng?: number | null
+          postal_code?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          country?: string | null
           created_at?: string
           display_name?: string | null
           id?: string
+          location_lat?: number | null
+          location_lng?: number | null
+          postal_code?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -156,6 +168,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_distance: {
+        Args: { lat1: number; lat2: number; lng1: number; lng2: number }
+        Returns: number
+      }
       find_available_fabricators: {
         Args: {
           p_technology: Database["public"]["Enums"]["fabricator_technology"]
