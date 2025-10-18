@@ -68,11 +68,10 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({
 
       if (selectedMethod === 'stripe') {
         // Redirect to Stripe Checkout
-        const { data, error } = await supabase.functions.invoke('create-payment', {
+        const { data, error } = await supabase.functions.invoke('create-checkout', {
           body: {
             amount: totalAmount,
             orderId: orderId,
-            paymentMethod: 'stripe'
           }
         });
 
