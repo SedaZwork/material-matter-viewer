@@ -93,6 +93,47 @@ const Index = () => {
     });
   };
 
+  const handleLoadExternalModel = async (modelUrl: string) => {
+    try {
+      const response = await fetch(modelUrl);
+      const blob = await response.blob();
+      const file = new File([blob], "model.stl", { type: "application/sla" });
+      
+      // Parse STL file
+      const text = await file.text();
+      const geometry = parseSTL(text);
+      handleModelLoaded(geometry);
+    } catch (error) {
+      console.error("Failed to load external model:", error);
+    }
+  };
+  
+  const parseSTL = (stlString: string): THREE.BufferGeometry => {
+    const geometry = new THREE.BufferGeometry();
+    const vertices: number[] = [];
+    const normals: number[] = [];
+    
+    const lines = stlString.split('\n');
+    let currentNormal: number[] = [];
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith('facet normal')) {
+        const parts = trimmed.split(/\s+/);
+        currentNormal = [parseFloat(parts[2]), parseFloat(parts[3]), parseFloat(parts[4])];
+      } else if (trimmed.startsWith('vertex')) {
+        const parts = trimmed.split(/\s+/);
+        vertices.push(parseFloat(parts[1]), parseFloat(parts[2]), parseFloat(parts[3]));
+        normals.push(...currentNormal);
+      }
+    }
+    
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+    
+    return geometry;
+  };
+
   const scrollToManufacturing = () => {
     const element = document.getElementById('manufacturing-section');
     element?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -335,7 +376,7 @@ const Index = () => {
               <div className="mb-3">
                 <h3 className="text-xs font-light text-muted-foreground tracking-wide">EXAMPLES</h3>
               </div>
-              <PrintExamplesCarousel />
+              <PrintExamplesCarousel onModelSelect={handleLoadExternalModel} />
             </div>
           </aside>
         </div>
