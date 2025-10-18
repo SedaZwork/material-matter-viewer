@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import { Material, PrintSettings } from '@/types/materials';
 import { materials } from '@/data/materials';
 import MaterialSelector from '@/components/MaterialSelector';
@@ -34,6 +36,7 @@ interface Dimensions {
 }
 
 const Index = () => {
+  const { toast } = useToast();
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
@@ -43,6 +46,7 @@ const Index = () => {
   const [quantity, setQuantity] = useState<number>(1);
   const [scale, setScale] = useState<number>(1);
   const [volume, setVolume] = useState<number>(0);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [dimensions, setDimensions] = useState<Dimensions | null>(null);
   const [printSettings, setPrintSettings] = useState<PrintSettings>({
     materialId: '',
@@ -93,18 +97,53 @@ const Index = () => {
     });
   };
 
-  const handleLoadExternalModel = async (modelUrl: string) => {
+  const handleLoadExternalModel = async (modelName: string, downloadUrl: string) => {
+    if (!downloadUrl) {
+      toast({
+        title: "Error",
+        description: "This model doesn't have a download URL available",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    toast({
+      title: "Downloading Model",
+      description: `Loading ${modelName} from Thingiverse...`,
+    });
+
     try {
-      const response = await fetch(modelUrl);
-      const blob = await response.blob();
-      const file = new File([blob], "model.stl", { type: "application/sla" });
+      // Use the edge function proxy to download the STL file
+      const { data, error } = await supabase.functions.invoke('thingiverse-proxy', {
+        body: { url: downloadUrl, action: 'download' },
+        method: 'POST',
+      });
+
+      if (error) throw error;
+
+      // Convert the response to a blob and then to a file
+      const blob = new Blob([data], { type: 'application/octet-stream' });
+      const file = new File([blob], `${modelName}.stl`, { type: 'application/sla' });
       
-      // Parse STL file
+      // Read the file and parse STL
       const text = await file.text();
       const geometry = parseSTL(text);
       handleModelLoaded(geometry);
+      
+      toast({
+        title: "Model Loaded",
+        description: `${modelName} loaded successfully!`,
+      });
     } catch (error) {
       console.error("Failed to load external model:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load model. The file might not be available.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
   
@@ -301,7 +340,15 @@ const Index = () => {
           <div className="flex-1 space-y-6">
             {/* 3D Viewer Section */}
             <div className="space-y-4">
-              <div className="rounded-xl border border-border/30 bg-card/30 backdrop-blur-sm overflow-hidden">
+              <div className="rounded-xl border border-border/30 bg-card/30 backdrop-blur-sm overflow-hidden relative">
+                {isLoading && (
+                  <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                      <p className="text-sm text-muted-foreground">Loading 3D model...</p>
+                    </div>
+                  </div>
+                )}
                 <ThreeViewer 
                   materialColor={getMaterialColor()} 
                   geometry={loadedGeometry}
