@@ -12,6 +12,18 @@ import { Label } from '@/components/ui/label';
 import { CreditCard, Wallet, Bitcoin } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { z } from 'zod';
+
+// Input validation schema for customer details
+const customerSchema = z.object({
+  fullName: z.string().trim().min(2, 'Name must be at least 2 characters').max(100, 'Name must be less than 100 characters'),
+  email: z.string().trim().email('Please enter a valid email address').max(255, 'Email must be less than 255 characters'),
+  phone: z.string().trim().max(20, 'Phone must be less than 20 characters').optional().or(z.literal('')),
+  address: z.string().trim().min(5, 'Address must be at least 5 characters').max(200, 'Address must be less than 200 characters'),
+  city: z.string().trim().max(100, 'City must be less than 100 characters').optional().or(z.literal('')),
+  postalCode: z.string().trim().max(20, 'Postal code must be less than 20 characters').optional().or(z.literal('')),
+  country: z.string().trim().max(100, 'Country must be less than 100 characters').optional().or(z.literal('')),
+});
 
 interface PaymentDialogProps {
   open: boolean;
@@ -50,15 +62,19 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({
       return;
     }
 
-    // Validate customer details
-    if (!customerDetails.fullName || !customerDetails.email || !customerDetails.address) {
+    // Validate customer details with zod schema
+    const validationResult = customerSchema.safeParse(customerDetails);
+    if (!validationResult.success) {
+      const firstError = validationResult.error.issues[0];
       toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields",
+        title: "Invalid Input",
+        description: firstError.message,
         variant: "destructive",
       });
       return;
     }
+    
+    const validatedData = validationResult.data;
 
     try {
       toast({
@@ -78,7 +94,7 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({
         if (error) throw error;
         if (data?.url) {
           window.open(data.url, '_blank');
-          onPaymentComplete(selectedMethod, customerDetails);
+          onPaymentComplete(selectedMethod, validatedData);
           onOpenChange(false);
         }
       } else if (selectedMethod === 'paypal') {
