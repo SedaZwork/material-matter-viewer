@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { logger } from './logger';
 
 export class VolumeCalculator {
   /**
@@ -10,7 +11,7 @@ export class VolumeCalculator {
     const indices = geometry.getIndex();
     
     if (!positions) {
-      console.error('Geometry has no position attribute');
+      logger.error('Geometry has no position attribute');
       return 0;
     }
 
@@ -91,7 +92,7 @@ export class VolumeCalculator {
    */
   static calculateMeshVolume(mesh: THREE.Mesh): number {
     if (!mesh.geometry) {
-      console.error('Mesh has no geometry');
+      logger.error('Mesh has no geometry');
       return 0;
     }
 
@@ -121,7 +122,7 @@ export class VolumeCalculator {
     const indices = geometry.getIndex();
     
     if (!positions) {
-      console.error('Geometry has no position attribute');
+      logger.error('Geometry has no position attribute');
       return 0;
     }
 

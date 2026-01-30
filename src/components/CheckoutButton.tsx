@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { ShoppingCart, Check } from 'lucide-react';
 import { Material, PrintSettings } from '@/types/materials';
 import { PaymentDialog } from '@/components/PaymentDialog';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logger';
 
 interface CheckoutButtonProps {
   material: Material | null;
@@ -55,7 +54,7 @@ const CheckoutButton: React.FC<CheckoutButtonProps> = ({
       toast.success(`Order placed successfully! Payment: ${paymentMethod} 🎉`);
       toast.info(`Confirmation sent to ${customerDetails.email}`);
     } catch (error) {
-      console.error('Error placing order:', error);
+      logger.error('Order placement failed', error);
       toast.error('Failed to place order. Please try again.');
     }
   };

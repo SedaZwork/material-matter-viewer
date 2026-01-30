@@ -172,20 +172,6 @@ export type Database = {
         Args: { lat1: number; lat2: number; lng1: number; lng2: number }
         Returns: number
       }
-      find_available_fabricators: {
-        Args: {
-          p_technology: Database["public"]["Enums"]["fabricator_technology"]
-          p_user_lat?: number
-          p_user_lng?: number
-        }
-        Returns: {
-          business_name: string
-          distance_km: number
-          fabricator_id: string
-          final_price_multiplier: number
-          location_address: string
-        }[]
-      }
     }
     Enums: {
       fabricator_technology: "FDM" | "SLA" | "SLS" | "MJF" | "Binder_Jetting"

@@ -12,7 +12,30 @@ import { Printer, LogIn, UserPlus } from 'lucide-react';
 import { z } from 'zod';
 
 const emailSchema = z.string().email('Please enter a valid email address');
-const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
+const passwordSchema = z.string()
+  .min(8, 'Password must be at least 8 characters')
+  .refine(
+    (password) => {
+      // Require at least one lowercase, one uppercase, and one number
+      const hasLower = /[a-z]/.test(password);
+      const hasUpper = /[A-Z]/.test(password);
+      const hasNumber = /[0-9]/.test(password);
+      return hasLower && hasUpper && hasNumber;
+    },
+    'Password must contain lowercase, uppercase, and a number'
+  )
+  .refine(
+    (password) => {
+      // Reject common weak passwords
+      const commonPasswords = [
+        'password', '12345678', 'qwerty123', 'admin123',
+        'password1', 'welcome1', 'letmein1', 'Password1',
+        'Password123', 'Admin123', 'Welcome1'
+      ];
+      return !commonPasswords.includes(password);
+    },
+    'This password is too common. Please choose a stronger password.'
+  );
 
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);

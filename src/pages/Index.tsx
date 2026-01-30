@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logger';
 import { Material, PrintSettings } from '@/types/materials';
 import { materials } from '@/data/materials';
 import MaterialSelector from '@/components/MaterialSelector';
@@ -136,7 +137,7 @@ const Index = () => {
         description: `${modelName} loaded successfully!`,
       });
     } catch (error) {
-      console.error("Failed to load external model:", error);
+      logger.error("Failed to load external model", error);
       toast({
         title: "Error",
         description: "Failed to load model. The file might not be available.",

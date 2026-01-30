@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, CarouselApi } from "@/components/ui/carousel";
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/utils/logger";
 
 interface ThingiverseModel {
   id: string;
@@ -36,7 +37,7 @@ export const PrintExamplesCarousel = ({ onModelSelect }: PrintExamplesCarouselPr
         setModels(data.models);
       }
     } catch (error) {
-      console.error('Failed to fetch Thingiverse models:', error);
+      logger.error('Failed to fetch Thingiverse models', error);
       // Fallback to placeholder data
       setModels([
         {

@@ -5,6 +5,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { MapPin } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { geocodeAddress, validateGeocodingInput } from '@/utils/geocoding';
+import { logger } from '@/utils/logger';
 
 interface LocationInputProps {
   onLocationChange: (lat: number | null, lng: number | null, postalCode: string, country: string) => void;
@@ -41,60 +43,50 @@ export const LocationInput: React.FC<LocationInputProps> = ({ onLocationChange }
     loadUserLocation();
   }, []);
 
-  const geocodeAddress = async (postal: string, countryName: string) => {
-    if (!postal || !countryName) return null;
-    
-    try {
-      // Using Nominatim (OpenStreetMap) free geocoding API
-      const query = encodeURIComponent(`${postal}, ${countryName}`);
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1`
-      );
-      const data = await response.json();
-      
-      if (data && data.length > 0) {
-        return {
-          lat: parseFloat(data[0].lat),
-          lng: parseFloat(data[0].lon)
-        };
-      }
-    } catch (error) {
-      console.error('Geocoding error:', error);
-    }
-    return null;
-  };
-
   const handleLocationUpdate = async () => {
     if (!postalCode || !country) {
       toast.error('Please enter both postal code and country');
       return;
     }
 
-    setLoading(true);
-    const location = await geocodeAddress(postalCode, country);
-    
-    if (location) {
-      onLocationChange(location.lat, location.lng, postalCode, country);
-      
-      // Save to user profile if logged in
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase
-          .from('profiles')
-          .update({
-            postal_code: postalCode,
-            country: country,
-            location_lat: location.lat,
-            location_lng: location.lng
-          })
-          .eq('user_id', user.id);
-        
-        toast.success('Location updated successfully');
-      }
-    } else {
-      toast.error('Could not find location. Please check your postal code and country.');
+    // Validate inputs before making API call
+    const addressToGeocode = `${postalCode}, ${country}`;
+    if (!validateGeocodingInput(addressToGeocode)) {
+      toast.error('Invalid postal code or country format. Please use only letters, numbers, and basic punctuation.');
+      return;
     }
-    setLoading(false);
+
+    setLoading(true);
+    try {
+      const location = await geocodeAddress(addressToGeocode);
+      
+      if (location) {
+        onLocationChange(location.lat, location.lng, postalCode, country);
+        
+        // Save to user profile if logged in
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase
+            .from('profiles')
+            .update({
+              postal_code: postalCode,
+              country: country,
+              location_lat: location.lat,
+              location_lng: location.lng
+            })
+            .eq('user_id', user.id);
+          
+          toast.success('Location updated successfully');
+        }
+      } else {
+        toast.error('Could not find location. Please check your postal code and country.');
+      }
+    } catch (error) {
+      logger.error('Location update failed', error);
+      toast.error('Failed to update location. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -115,6 +107,7 @@ export const LocationInput: React.FC<LocationInputProps> = ({ onLocationChange }
               onBlur={handleLocationUpdate}
               placeholder="28001"
               disabled={loading}
+              maxLength={20}
             />
           </div>
           <div className="space-y-2">
@@ -126,6 +119,7 @@ export const LocationInput: React.FC<LocationInputProps> = ({ onLocationChange }
               onBlur={handleLocationUpdate}
               placeholder="Spain"
               disabled={loading}
+              maxLength={100}
             />
           </div>
         </div>
