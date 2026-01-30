@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MapPin, DollarSign, Leaf, Factory, Zap } from 'lucide-react';
+import { MapPin, DollarSign, Leaf, Zap } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Material, PrintSettings } from '@/types/materials';
 import { toast } from 'sonner';
+import { logger } from '@/utils/logger';
 
 interface Fabricator {
   fabricator_id: string;
@@ -56,9 +57,39 @@ const ManufacturingOptions: React.FC<ManufacturingOptionsProps> = ({
     
     setLoading(true);
     try {
-      // Get user's location
-      const userLat = 40.7128;
-      const userLng = -74.0060;
+      // Get user's actual location from their profile
+      let userLat: number | null = null;
+      let userLng: number | null = null;
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('location_lat, location_lng')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (profile?.location_lat && profile?.location_lng) {
+          userLat = profile.location_lat;
+          userLng = profile.location_lng;
+        }
+      }
+      
+      // Fallback to browser geolocation if no profile location
+      if (userLat === null && userLng === null && typeof navigator !== 'undefined' && navigator.geolocation) {
+        try {
+          const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              timeout: 5000,
+              maximumAge: 300000, // Cache for 5 minutes
+            });
+          });
+          userLat = position.coords.latitude;
+          userLng = position.coords.longitude;
+        } catch (geoError) {
+          logger.warn('Geolocation unavailable or denied', geoError);
+        }
+      }
 
       const { data, error } = await supabase
         .from('fabricators')
@@ -80,14 +111,17 @@ const ManufacturingOptions: React.FC<ManufacturingOptionsProps> = ({
         fab.build_volume_y >= scaledDimensions.height &&
         fab.build_volume_z >= scaledDimensions.depth
       ).map((fab: any) => {
-        // Calculate distance
-        const distance = Math.round(
-          6371 * Math.acos(
-            Math.cos(userLat * Math.PI / 180) * Math.cos(fab.location_lat * Math.PI / 180) *
-            Math.cos((fab.location_lng - userLng) * Math.PI / 180) +
-            Math.sin(userLat * Math.PI / 180) * Math.sin(fab.location_lat * Math.PI / 180)
-          ) * 100
-        ) / 100;
+        // Calculate distance only if user location is available
+        let distance: number | null = null;
+        if (userLat !== null && userLng !== null) {
+          distance = Math.round(
+            6371 * Math.acos(
+              Math.cos(userLat * Math.PI / 180) * Math.cos(fab.location_lat * Math.PI / 180) *
+              Math.cos((fab.location_lng - userLng) * Math.PI / 180) +
+              Math.sin(userLat * Math.PI / 180) * Math.sin(fab.location_lat * Math.PI / 180)
+            ) * 100
+          ) / 100;
+        }
         
         return {
           fabricator_id: fab.id,
@@ -103,7 +137,7 @@ const ManufacturingOptions: React.FC<ManufacturingOptionsProps> = ({
       
       setFabricators(compatibleFabricators);
     } catch (error) {
-      console.error('Error fetching fabricators:', error);
+      logger.error('Error fetching fabricators', error);
       toast.error('Failed to load manufacturing options');
     } finally {
       setLoading(false);
@@ -222,7 +256,7 @@ const ManufacturingOptions: React.FC<ManufacturingOptionsProps> = ({
                 </Badge>
                 <div className="flex items-center gap-1 text-xs text-green-600 mb-1">
                   <MapPin className="w-3 h-3" />
-                  {local.distance_km ? `${local.distance_km} km away` : 'Nearby'}
+                  {local.distance_km ? `${local.distance_km} km away` : 'Distance unknown'}
                 </div>
                 <p className="text-xs text-muted-foreground">{local.location_address}</p>
               </>

@@ -13,6 +13,7 @@ import { CreditCard, Wallet, Bitcoin } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { z } from 'zod';
+import { logger } from '@/utils/logger';
 
 // Input validation schema for customer details
 const customerSchema = z.object({
@@ -111,7 +112,7 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({
         });
       }
     } catch (error) {
-      console.error('Payment error:', error);
+      logger.error('Payment processing failed', error);
       toast({
         title: "Payment Failed",
         description: "There was an error processing your payment. Please try again.",

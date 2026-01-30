@@ -15,6 +15,8 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Factory } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { geocodeAddress, validateGeocodingInput } from '@/utils/geocoding';
+import { logger } from '@/utils/logger';
 
 type Technology = 'FDM' | 'SLA' | 'SLS' | 'MJF' | 'Binder_Jetting';
 
@@ -49,27 +51,6 @@ export const FabricatorRegistration = () => {
     );
   };
 
-  const geocodeAddress = async (address: string): Promise<{ lat: number; lng: number } | null> => {
-    try {
-      // Using OpenStreetMap Nominatim API for geocoding (free, no API key required)
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`
-      );
-      const data = await response.json();
-      
-      if (data && data.length > 0) {
-        return {
-          lat: parseFloat(data[0].lat),
-          lng: parseFloat(data[0].lon),
-        };
-      }
-      return null;
-    } catch (error) {
-      console.error('Geocoding error:', error);
-      return null;
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -91,10 +72,20 @@ export const FabricatorRegistration = () => {
       return;
     }
 
+    // Validate address input before geocoding
+    if (!validateGeocodingInput(formData.address)) {
+      toast({
+        title: "Invalid Address",
+        description: "Please enter a valid address using only letters, numbers, and basic punctuation.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // Geocode the address
+      // Geocode the address using the secure utility
       const coordinates = await geocodeAddress(formData.address);
       
       if (!coordinates) {
@@ -146,10 +137,11 @@ export const FabricatorRegistration = () => {
       });
       setSelectedTechnologies([]);
       setOpen(false);
-    } catch (error: any) {
+    } catch (error) {
+      logger.error('Fabricator registration failed', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to register fabricator",
+        description: "Failed to register fabricator. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -183,6 +175,7 @@ export const FabricatorRegistration = () => {
                 onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
                 required
                 placeholder="Your Company Name"
+                maxLength={100}
               />
             </div>
 
@@ -194,6 +187,7 @@ export const FabricatorRegistration = () => {
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                 required
                 placeholder="Street, City, Country"
+                maxLength={200}
               />
             </div>
 
@@ -205,6 +199,7 @@ export const FabricatorRegistration = () => {
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 placeholder="contact@company.com"
+                maxLength={255}
               />
             </div>
 
@@ -216,6 +211,7 @@ export const FabricatorRegistration = () => {
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 placeholder="+34 123 456 789"
+                maxLength={20}
               />
             </div>
 
@@ -226,6 +222,7 @@ export const FabricatorRegistration = () => {
                 value={formData.cif}
                 onChange={(e) => setFormData({ ...formData, cif: e.target.value })}
                 placeholder="A12345678"
+                maxLength={20}
               />
             </div>
 
