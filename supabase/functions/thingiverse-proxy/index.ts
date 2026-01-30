@@ -9,6 +9,77 @@ const corsHeaders = {
 const RATE_LIMIT = 20; // requests per minute per IP
 const rateLimitStore = new Map<string, number[]>();
 
+// Allowed domains for SSRF protection
+const ALLOWED_DOMAINS = [
+  'cdn.thingiverse.com',
+  'thingiverse-production-new.s3.amazonaws.com',
+  'thingiverse-production.s3.amazonaws.com',
+  'www.thingiverse.com',
+  'thingiverse.com'
+];
+
+// Block private/internal IPs to prevent SSRF attacks
+const isPrivateOrReservedIP = (hostname: string): boolean => {
+  // Check for private IP ranges
+  if (
+    hostname === 'localhost' ||
+    hostname.startsWith('127.') ||
+    hostname.startsWith('10.') ||
+    hostname.startsWith('192.168.') ||
+    hostname.startsWith('0.') ||
+    hostname === '::1' ||
+    hostname.startsWith('169.254.') || // Link-local
+    hostname.startsWith('fc00:') || // IPv6 private
+    hostname.startsWith('fe80:') // IPv6 link-local
+  ) {
+    return true;
+  }
+  
+  // Check 172.16.0.0 - 172.31.255.255 range
+  if (hostname.startsWith('172.')) {
+    const parts = hostname.split('.');
+    if (parts.length >= 2) {
+      const second = parseInt(parts[1], 10);
+      if (second >= 16 && second <= 31) {
+        return true;
+      }
+    }
+  }
+  
+  return false;
+};
+
+// Validate URL and check against allowed domains
+const validateDownloadUrl = (urlString: string | null): { valid: boolean; error?: string; parsedUrl?: URL } => {
+  if (!urlString) {
+    return { valid: false, error: 'URL parameter required' };
+  }
+
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(urlString);
+  } catch {
+    return { valid: false, error: 'Invalid URL format' };
+  }
+
+  // Only allow HTTPS
+  if (parsedUrl.protocol !== 'https:') {
+    return { valid: false, error: 'Only HTTPS URLs are allowed' };
+  }
+
+  // Check against allowed domains
+  if (!ALLOWED_DOMAINS.includes(parsedUrl.hostname)) {
+    return { valid: false, error: 'Domain not allowed. Only Thingiverse URLs are supported.' };
+  }
+
+  // Block private IPs (in case of DNS rebinding attacks)
+  if (isPrivateOrReservedIP(parsedUrl.hostname)) {
+    return { valid: false, error: 'Private IP addresses are not allowed' };
+  }
+
+  return { valid: true, parsedUrl };
+};
+
 // Clean up old entries periodically (prevent memory leak)
 const cleanupRateLimitStore = () => {
   const now = Date.now();
@@ -41,7 +112,6 @@ serve(async (req) => {
     const recentRequests = userRequests.filter(t => now - t < 60000);
 
     if (recentRequests.length >= RATE_LIMIT) {
-      console.warn(`Rate limit exceeded for IP: ${clientIp}`);
       return new Response(
         JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
         { 
@@ -125,31 +195,30 @@ serve(async (req) => {
       );
     }
 
-    // Proxy STL file downloads
+    // Proxy STL file downloads with SSRF protection
     if (action === 'download') {
       const fileUrl = url.searchParams.get('url');
       
-      if (!fileUrl) {
+      // Validate URL against whitelist and check for private IPs
+      const validation = validateDownloadUrl(fileUrl);
+      if (!validation.valid) {
         return new Response(
-          JSON.stringify({ error: 'URL parameter required' }),
+          JSON.stringify({ error: validation.error }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
         );
       }
 
-      console.log('Attempting to fetch STL from:', fileUrl);
-
-      // Fetch the file with proper headers
-      const response = await fetch(fileUrl, {
+      // Fetch the file with proper headers using validated URL
+      const response = await fetch(validation.parsedUrl!.toString(), {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'User-Agent': '0K3D-Print/1.0 (https://0k3d.print)',
           'Accept': '*/*'
         }
       });
 
       if (!response.ok) {
-        console.error('Failed to fetch STL:', response.status, response.statusText);
         return new Response(
-          JSON.stringify({ error: `Failed to fetch file: ${response.statusText}` }),
+          JSON.stringify({ error: 'Failed to fetch file from Thingiverse' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: response.status }
         );
       }
@@ -171,10 +240,9 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error in thingiverse-proxy:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    // Generic error message to prevent information leakage
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: 'An error occurred processing your request' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
