@@ -5,6 +5,26 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Rate limiting configuration
+const RATE_LIMIT = 20; // requests per minute per IP
+const rateLimitStore = new Map<string, number[]>();
+
+// Clean up old entries periodically (prevent memory leak)
+const cleanupRateLimitStore = () => {
+  const now = Date.now();
+  for (const [ip, timestamps] of rateLimitStore.entries()) {
+    const recent = timestamps.filter(t => now - t < 60000);
+    if (recent.length === 0) {
+      rateLimitStore.delete(ip);
+    } else {
+      rateLimitStore.set(ip, recent);
+    }
+  }
+};
+
+// Run cleanup every 5 minutes
+setInterval(cleanupRateLimitStore, 5 * 60 * 1000);
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -12,6 +32,32 @@ serve(async (req) => {
   }
 
   try {
+    // Rate limiting check
+    const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
+                     req.headers.get('x-real-ip') || 
+                     'unknown';
+    const now = Date.now();
+    const userRequests = rateLimitStore.get(clientIp) || [];
+    const recentRequests = userRequests.filter(t => now - t < 60000);
+
+    if (recentRequests.length >= RATE_LIMIT) {
+      console.warn(`Rate limit exceeded for IP: ${clientIp}`);
+      return new Response(
+        JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
+        { 
+          status: 429, 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json',
+            'Retry-After': '60'
+          } 
+        }
+      );
+    }
+
+    // Record this request
+    rateLimitStore.set(clientIp, [...recentRequests, now]);
+
     const url = new URL(req.url);
     const action = url.searchParams.get('action');
 
