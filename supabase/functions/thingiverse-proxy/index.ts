@@ -128,8 +128,8 @@ serve(async (req) => {
     // Record this request
     rateLimitStore.set(clientIp, [...recentRequests, now]);
 
-    const url = new URL(req.url);
-    const action = url.searchParams.get('action');
+    const body = await req.json().catch(() => ({}));
+    const action = body.action;
 
     // Fetch popular models from Thingiverse (using their featured/popular items)
     if (action === 'popular') {
@@ -197,7 +197,7 @@ serve(async (req) => {
 
     // Proxy STL file downloads with SSRF protection
     if (action === 'download') {
-      const fileUrl = url.searchParams.get('url');
+      const fileUrl = body.url;
       
       // Validate URL against whitelist and check for private IPs
       const validation = validateDownloadUrl(fileUrl);
