@@ -91,26 +91,22 @@ const ManufacturingOptions: React.FC<ManufacturingOptionsProps> = ({
         }
       }
 
-      const { data, error } = await supabase
-        .from('fabricators')
-        .select('id, business_name, location_address, location_lat, location_lng, price_multiplier, build_volume_x, build_volume_y, build_volume_z')
-        .eq('is_active', true)
-        .gte('current_capacity', 20);
-
-      if (error) throw error;
-      
-      // Filter fabricators by build volume
       const scaledDimensions = {
         width: dimensions.width * scale,
         height: dimensions.height * scale,
         depth: dimensions.depth * scale,
       };
+
+      const { data, error } = await supabase
+        .rpc('find_matching_fabricators', {
+          p_min_x: scaledDimensions.width,
+          p_min_y: scaledDimensions.height,
+          p_min_z: scaledDimensions.depth,
+        });
+
+      if (error) throw error;
       
-      const compatibleFabricators = (data || []).filter((fab: any) => 
-        fab.build_volume_x >= scaledDimensions.width &&
-        fab.build_volume_y >= scaledDimensions.height &&
-        fab.build_volume_z >= scaledDimensions.depth
-      ).map((fab: any) => {
+      const compatibleFabricators = (data || []).map((fab: any) => {
         // Calculate distance only if user location is available
         let distance: number | null = null;
         if (userLat !== null && userLng !== null) {
@@ -124,7 +120,7 @@ const ManufacturingOptions: React.FC<ManufacturingOptionsProps> = ({
         }
         
         return {
-          fabricator_id: fab.id,
+          fabricator_id: fab.fabricator_id,
           business_name: fab.business_name,
           location_address: fab.location_address,
           distance_km: distance,
