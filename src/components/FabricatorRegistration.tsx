@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,7 @@ const TECHNOLOGIES: Technology[] = ['FDM', 'SLA', 'SLS', 'MJF', 'Binder_Jetting'
 export const FabricatorRegistration = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   
@@ -150,7 +152,14 @@ export const FabricatorRegistration = () => {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(val) => {
+      if (val && !user) {
+        toast({ title: "Sign in required", description: "Please sign in to register as a fabricator" });
+        navigate('/auth');
+        return;
+      }
+      setOpen(val);
+    }}>
       <DialogTrigger asChild>
         <Button variant="outline" className="flex items-center gap-2">
           <Factory className="w-4 h-4" />
