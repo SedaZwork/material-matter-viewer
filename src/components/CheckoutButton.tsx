@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ShoppingCart, Check } from 'lucide-react';
+import { ShoppingCart, Check, LogIn } from 'lucide-react';
 import { Material, PrintSettings } from '@/types/materials';
 import { PaymentDialog } from '@/components/PaymentDialog';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { logger } from '@/utils/logger';
 
 interface CheckoutButtonProps {
@@ -24,6 +26,8 @@ const CheckoutButton: React.FC<CheckoutButtonProps> = ({
   quantity,
   scale
 }) => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
 
   const handlePaymentComplete = async (paymentMethod: string, customerDetails: any) => {
@@ -60,6 +64,11 @@ const CheckoutButton: React.FC<CheckoutButtonProps> = ({
   };
 
   const handleCheckout = () => {
+    if (!user) {
+      toast.info('Please sign in to place an order');
+      navigate('/auth');
+      return;
+    }
     if (!material || settings.volume === 0 || !selectedFabricatorId) {
       toast.error('Please complete all selections');
       return;
