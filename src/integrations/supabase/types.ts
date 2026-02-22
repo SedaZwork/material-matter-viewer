@@ -172,6 +172,20 @@ export type Database = {
         Args: { lat1: number; lat2: number; lng1: number; lng2: number }
         Returns: number
       }
+      find_matching_fabricators: {
+        Args: { p_min_x: number; p_min_y: number; p_min_z: number }
+        Returns: {
+          build_volume_x: number
+          build_volume_y: number
+          build_volume_z: number
+          business_name: string
+          fabricator_id: string
+          location_address: string
+          location_lat: number
+          location_lng: number
+          price_multiplier: number
+        }[]
+      }
     }
     Enums: {
       fabricator_technology: "FDM" | "SLA" | "SLS" | "MJF" | "Binder_Jetting"
