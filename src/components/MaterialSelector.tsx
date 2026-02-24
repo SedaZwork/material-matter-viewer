@@ -1,78 +1,77 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { materials } from '@/data/materials';
 import { Material } from '@/types/materials';
+import { cn } from '@/lib/utils';
 
 interface MaterialSelectorProps {
   selectedMaterial: Material | null;
   onMaterialSelect: (material: Material) => void;
 }
 
+const MATERIAL_COLORS: Record<string, string> = {
+  pla: '#22c55e',
+  petg: '#a855f7',
+  abs: '#f59e0b',
+  nylon: '#ec4899',
+};
+
 const MaterialSelector: React.FC<MaterialSelectorProps> = ({
   selectedMaterial,
   onMaterialSelect,
 }) => {
-  const getPropertyColor = (level: string) => {
-    switch (level) {
-      case 'low': return 'bg-destructive/20 text-destructive';
-      case 'medium': return 'bg-yellow-500/20 text-yellow-500';
-      case 'high': return 'bg-green-500/20 text-green-500';
-      default: return 'bg-muted';
-    }
-  };
-
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-foreground">Select Material</h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {materials.map((material) => (
-          <Card
-            key={material.id}
-            className={`cursor-pointer transition-all duration-300 hover:shadow-glow border-2 ${
-              selectedMaterial?.id === material.id
-                ? `border-${material.color} shadow-glow`
-                : 'border-border hover:border-primary/30'
-            }`}
-            onClick={() => onMaterialSelect(material)}
-          >
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">{material.name}</CardTitle>
-                <div
-                  className={`w-4 h-4 rounded-full bg-${material.color}`}
-                />
-              </div>
-              <p className="text-sm text-muted-foreground">{material.description}</p>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span>Cost per kg:</span>
-                <span className="font-medium">${material.costPerKg}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span>Density:</span>
-                <span className="font-medium">{material.density} g/cm³</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span>Print temp:</span>
-                <span className="font-medium">{material.properties.temperature}°C</span>
-              </div>
-              <div className="flex flex-wrap gap-2 pt-2">
-                <Badge className={getPropertyColor(material.properties.strength)}>
-                  Strength: {material.properties.strength}
-                </Badge>
-                <Badge className={getPropertyColor(material.properties.flexibility)}>
-                  Flexibility: {material.properties.flexibility}
-                </Badge>
-                <Badge className={getPropertyColor(material.properties.durability)}>
-                  Durability: {material.properties.durability}
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-medium text-foreground">Surface Material</h3>
+        {selectedMaterial && (
+          <span className="text-xs text-muted-foreground">
+            Selected: <span className="text-foreground font-medium">{selectedMaterial.name}</span>
+          </span>
+        )}
       </div>
+      <TooltipProvider>
+        <div className="flex items-center gap-3">
+          {materials.map((material) => {
+            const isSelected = selectedMaterial?.id === material.id;
+            const color = MATERIAL_COLORS[material.id] || '#888';
+            return (
+              <Tooltip key={material.id}>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => onMaterialSelect(material)}
+                    className={cn(
+                      "relative w-12 h-12 rounded-full transition-all duration-200 focus:outline-none",
+                      isSelected
+                        ? "ring-2 ring-offset-2 ring-offset-background ring-foreground scale-110"
+                        : "hover:scale-105 hover:shadow-md"
+                    )}
+                    style={{ backgroundColor: color }}
+                    aria-label={`Select ${material.name}`}
+                  >
+                    {isSelected && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <svg className="w-5 h-5 text-white drop-shadow-md" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                    )}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-[200px]">
+                  <div className="space-y-1">
+                    <div className="font-semibold">{material.name}</div>
+                    <div className="text-xs text-muted-foreground">{material.description}</div>
+                    <div className="text-xs font-medium">
+                      €{material.costPerKg}/kg · {material.density} g/cm³
+                    </div>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </div>
+      </TooltipProvider>
     </div>
   );
 };
