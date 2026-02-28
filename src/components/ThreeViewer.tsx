@@ -1,10 +1,12 @@
-import React, { Suspense, useRef, useEffect, useState } from 'react';
+import React, { Suspense, useRef, useEffect, useState, useCallback } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Environment } from '@react-three/drei';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import MaterialSelector from '@/components/MaterialSelector';
 import { Material } from '@/types/materials';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { cn } from '@/lib/utils';
 import * as THREE from 'three';
 
 interface ModelProps {
@@ -53,6 +55,24 @@ const Model: React.FC<ModelProps> = ({ materialColor, geometry, scale }) => {
   );
 };
 
+const CameraAutoFit: React.FC<{ scale: number }> = ({ scale }) => {
+  const { camera } = useThree();
+  const prevScale = useRef(scale);
+
+  useEffect(() => {
+    if (prevScale.current !== scale) {
+      prevScale.current = scale;
+      const dist = 3 * Math.max(scale, 0.5) + 2;
+      const ratio = 1 / Math.sqrt(3);
+      camera.position.set(dist * ratio, dist * ratio, dist * ratio);
+      camera.lookAt(0, 0, 0);
+      camera.updateProjectionMatrix();
+    }
+  }, [scale, camera]);
+
+  return null;
+};
+
 const ZoomHandler = () => {
   const { camera, gl } = useThree();
   useEffect(() => {
@@ -71,6 +91,41 @@ const ZoomHandler = () => {
     return () => canvas.removeEventListener('wheel', handleWheel);
   }, [camera, gl]);
   return null;
+};
+
+const NavigationOverlay: React.FC = () => {
+  const isMobile = useIsMobile();
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setVisible(false), 3000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!visible) return null;
+
+  return (
+    <div className={cn(
+      "absolute inset-0 z-20 flex items-center justify-center pointer-events-none transition-opacity duration-700",
+      visible ? "opacity-80" : "opacity-0"
+    )}>
+      <div className="bg-foreground/80 text-background rounded-xl px-6 py-4 text-center space-y-2 backdrop-blur-sm max-w-xs">
+        {isMobile ? (
+          <>
+            <p className="text-sm font-medium">☝️ One finger to rotate</p>
+            <p className="text-sm font-medium">✌️ Two fingers to pan</p>
+            <p className="text-sm font-medium">🤏 Pinch to zoom</p>
+          </>
+        ) : (
+          <>
+            <p className="text-sm font-medium">🖱️ Left click + drag to rotate</p>
+            <p className="text-sm font-medium">🖱️ Right click + drag to pan</p>
+            <p className="text-sm font-medium">⇧ Shift + scroll to zoom</p>
+          </>
+        )}
+      </div>
+    </div>
+  );
 };
 
 interface ThreeViewerProps {
@@ -155,6 +210,7 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
             <ambientLight intensity={0.5} />
             <directionalLight position={[10, 10, 5]} intensity={0.8} />
             <Model materialColor={materialColor} geometry={geometry} scale={scale} />
+            <CameraAutoFit scale={scale} />
             <OrbitControls
               enablePan={true}
               enableZoom={false}
@@ -167,6 +223,9 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
             <ZoomHandler />
           </Suspense>
         </Canvas>
+
+        {/* Navigation instructions overlay */}
+        <NavigationOverlay />
 
         {/* Bottom material bar */}
         <div className="absolute bottom-0 left-0 right-0 z-10 px-5 py-4 bg-gradient-to-t from-card/90 to-transparent">
