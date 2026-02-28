@@ -41,21 +41,34 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
                   <button
                     onClick={() => onMaterialSelect(material)}
                     className={cn(
-                      "relative w-12 h-12 rounded-full transition-all duration-200 focus:outline-none",
-                      isSelected
-                        ? "ring-2 ring-offset-2 ring-offset-background ring-foreground scale-110"
-                        : "hover:scale-105 hover:shadow-md"
+                      "flex flex-col items-center gap-1.5 focus:outline-none transition-all duration-200",
+                      isSelected ? "scale-110" : "hover:scale-105"
                     )}
-                    style={{ backgroundColor: color }}
                     aria-label={`Select ${material.name}`}
                   >
-                    {isSelected && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <svg className="w-5 h-5 text-white drop-shadow-md" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      </div>
-                    )}
+                    <div
+                      className={cn(
+                        "relative w-10 h-10 rounded-full transition-all duration-200",
+                        isSelected
+                          ? "ring-2 ring-offset-2 ring-offset-background ring-foreground"
+                          : "hover:shadow-md"
+                      )}
+                      style={{ backgroundColor: color }}
+                    >
+                      {isSelected && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <svg className="w-4 h-4 text-white drop-shadow-md" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                    <span className={cn(
+                      "text-[10px] font-medium transition-colors",
+                      isSelected ? "text-foreground" : "text-muted-foreground"
+                    )}>
+                      {material.name}
+                    </span>
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" className="max-w-[200px]">
