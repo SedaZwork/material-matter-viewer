@@ -33,6 +33,9 @@ serve(async (req) => {
       throw new Error("Invalid amount");
     }
 
+    // Stripe requires a minimum of €0.50
+    const chargeAmount = Math.max(amount, 0.50);
+
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
       apiVersion: "2025-08-27.basil",
     });
@@ -58,7 +61,7 @@ serve(async (req) => {
               name: "3D Print Order",
               description: orderId ? `Order #${orderId}` : "Custom 3D Print",
             },
-            unit_amount: Math.round(amount * 100),
+            unit_amount: Math.round(chargeAmount * 100),
           },
           quantity: 1,
         },
