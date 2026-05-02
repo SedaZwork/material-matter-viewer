@@ -66,7 +66,7 @@ const CheckoutButton: React.FC<CheckoutButtonProps> = ({
   const handleCheckout = () => {
     if (!user) {
       toast.info('Please sign in to place an order');
-      navigate('/auth');
+      navigate('/auth?returnTo=/');
       return;
     }
     if (!material || settings.volume === 0 || !selectedFabricatorId) {
