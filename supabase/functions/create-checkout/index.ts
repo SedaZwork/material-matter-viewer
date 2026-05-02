@@ -61,7 +61,7 @@ serve(async (req) => {
               name: "3D Print Order",
               description: orderId ? `Order #${orderId}` : "Custom 3D Print",
             },
-            unit_amount: Math.round(amount * 100),
+            unit_amount: Math.round(chargeAmount * 100),
           },
           quantity: 1,
         },
