@@ -33,6 +33,9 @@ serve(async (req) => {
       throw new Error("Invalid amount");
     }
 
+    // Stripe requires a minimum of €0.50
+    const chargeAmount = Math.max(amount, 0.50);
+
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
       apiVersion: "2025-08-27.basil",
     });
