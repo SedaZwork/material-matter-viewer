@@ -1,9 +1,10 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import Stripe from "https://esm.sh/stripe@18.5.0";
+import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 serve(async (req) => {
@@ -14,51 +15,66 @@ serve(async (req) => {
   try {
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      {
-        global: {
-          headers: { Authorization: req.headers.get("Authorization")! },
-        },
-      }
+      Deno.env.get("SUPABASE_ANON_KEY") ?? ""
     );
 
-    const {
-      data: { user },
-    } = await supabaseClient.auth.getUser();
+    const authHeader = req.headers.get("Authorization")!;
+    const token = authHeader.replace("Bearer ", "");
+    const { data } = await supabaseClient.auth.getUser(token);
+    const user = data.user;
 
-    if (!user) {
-      throw new Error("Not authenticated");
+    if (!user?.email) {
+      throw new Error("User not authenticated or email not available");
     }
 
     const { amount, orderId } = await req.json();
 
-    if (!amount || !orderId) {
-      throw new Error("Missing required parameters: amount and orderId");
+    if (!amount || typeof amount !== 'number' || amount <= 0) {
+      throw new Error("Invalid amount");
     }
 
-    // Use Supabase's Stripe wrapper extension
-    const { data, error } = await supabaseClient.functions.invoke('stripe-checkout', {
-      body: {
-        amount: Math.round(amount * 100), // Convert to cents
-        currency: 'usd',
-        customer_email: user.email,
-        metadata: {
-          order_id: orderId,
-          user_id: user.id,
-        },
-        success_url: `${req.headers.get("origin")}/payment-success?order_id=${orderId}`,
-        cancel_url: `${req.headers.get("origin")}/payment-canceled?order_id=${orderId}`,
-      },
+    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+      apiVersion: "2025-08-27.basil",
     });
 
-    if (error) throw error;
+    // Check for existing Stripe customer
+    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+    let customerId: string | undefined;
+    if (customers.data.length > 0) {
+      customerId = customers.data[0].id;
+    }
 
-    return new Response(JSON.stringify(data), {
+    const origin = req.headers.get("origin") || "https://id-preview--c11bd4bd-f9ae-4341-bf43-5788f7f5b312.lovable.app";
+
+    // Create a checkout session with a dynamic price
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      customer_email: customerId ? undefined : user.email,
+      line_items: [
+        {
+          price_data: {
+            currency: "eur",
+            product_data: {
+              name: "3D Print Order",
+              description: orderId ? `Order #${orderId}` : "Custom 3D Print",
+            },
+            unit_amount: Math.round(amount * 100),
+          },
+          quantity: 1,
+        },
+      ],
+      mode: "payment",
+      success_url: `${origin}/payment-success${orderId ? `?order_id=${orderId}` : ''}`,
+      cancel_url: `${origin}/payment-canceled${orderId ? `?order_id=${orderId}` : ''}`,
+    });
+
+    return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error("Checkout error:", errorMessage);
     return new Response(
       JSON.stringify({ error: errorMessage }),
       {
