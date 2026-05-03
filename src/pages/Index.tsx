@@ -40,6 +40,7 @@ const Index = () => {
   const [volume, setVolume] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [dimensions, setDimensions] = useState<Dimensions | null>(null);
+  const [showLanding, setShowLanding] = useState(true);
   const [printSettings, setPrintSettings] = useState<PrintSettings>({
     materialId: '', volume: 0, infill: 20, supports: false,
     laborCostPerHour: 15, estimatedPrintTime: 2, electricityCostPerKwh: 0.12, printerPowerConsumption: 200,
