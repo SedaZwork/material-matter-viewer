@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,6 +12,7 @@ import ManufacturingOptions from '@/components/ManufacturingOptions';
 import FileAnalysis from '@/components/FileAnalysis';
 import { FabricatorRegistration } from '@/components/FabricatorRegistration';
 import { PrintExamplesCarousel } from '@/components/PrintExamplesCarousel';
+import RecipeGallery from '@/components/RecipeGallery';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,6 +40,7 @@ const Index = () => {
   const [volume, setVolume] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [dimensions, setDimensions] = useState<Dimensions | null>(null);
+  const [showLanding, setShowLanding] = useState(true);
   const [printSettings, setPrintSettings] = useState<PrintSettings>({
     materialId: '', volume: 0, infill: 20, supports: false,
     laborCostPerHour: 15, estimatedPrintTime: 2, electricityCostPerKwh: 0.12, printerPowerConsumption: 200,
@@ -162,6 +164,11 @@ const Index = () => {
       </div>
     </header>
   );
+
+  // --- Landing / Recipe Gallery ---
+  if (showLanding && !loadedGeometry) {
+    return <RecipeGallery onEnterCustomizer={() => setShowLanding(false)} />;
+  }
 
   // --- Upload screen ---
   if (!loadedGeometry) {
