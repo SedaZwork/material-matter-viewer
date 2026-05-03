@@ -165,6 +165,11 @@ const Index = () => {
     </header>
   );
 
+  // --- Landing / Recipe Gallery ---
+  if (showLanding && !loadedGeometry) {
+    return <RecipeGallery onEnterCustomizer={() => setShowLanding(false)} />;
+  }
+
   // --- Upload screen ---
   if (!loadedGeometry) {
     return (
