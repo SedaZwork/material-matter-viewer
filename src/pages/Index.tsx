@@ -12,6 +12,7 @@ import ManufacturingOptions from '@/components/ManufacturingOptions';
 import FileAnalysis from '@/components/FileAnalysis';
 import { FabricatorRegistration } from '@/components/FabricatorRegistration';
 import { PrintExamplesCarousel } from '@/components/PrintExamplesCarousel';
+import RecipeGallery from '@/components/RecipeGallery';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
