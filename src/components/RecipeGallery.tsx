@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Upload, ArrowRight } from 'lucide-react';
 
@@ -8,6 +9,7 @@ import recipeRing from '@/assets/recipe-ring.jpg';
 import recipeAcoustic from '@/assets/recipe-acoustic.jpg';
 import recipeCase from '@/assets/recipe-case.jpg';
 import recipeMap from '@/assets/recipe-map.jpg';
+import recipeVessel from '@/assets/recipe-vessel.jpg';
 
 interface Recipe {
   id: string;
@@ -16,6 +18,7 @@ interface Recipe {
   image: string;
   tags: string[];
   available: boolean;
+  generatorRoute?: string;
 }
 
 const recipes: Recipe[] = [
@@ -26,6 +29,15 @@ const recipes: Recipe[] = [
     image: recipeCeramic,
     tags: ['FDM', 'SLA', 'Upload STL'],
     available: true,
+  },
+  {
+    id: 'ceramic-vessel',
+    title: 'Ceramic Vessel',
+    subtitle: 'Procedural lathe design with texture patterns — porcelain & stoneware',
+    image: recipeVessel,
+    tags: ['Ceramic', 'Procedural', 'Lathe'],
+    available: true,
+    generatorRoute: '/vessel-generator',
   },
   {
     id: 'ring',
@@ -75,9 +87,13 @@ interface RecipeGalleryProps {
 
 const RecipeGallery: React.FC<RecipeGalleryProps> = ({ onEnterCustomizer }) => {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   const handleRecipeClick = (recipe: Recipe) => {
-    if (recipe.available) {
+    if (!recipe.available) return;
+    if (recipe.generatorRoute) {
+      navigate(recipe.generatorRoute);
+    } else {
       onEnterCustomizer();
     }
   };

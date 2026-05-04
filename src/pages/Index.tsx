@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useCallback, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
@@ -31,6 +31,7 @@ const Index = () => {
   const { toast } = useToast();
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
   const [loadedGeometry, setLoadedGeometry] = useState<THREE.BufferGeometry | null>(null);
   const [selectedFabricatorId, setSelectedFabricatorId] = useState<string | null>(null);
@@ -108,6 +109,23 @@ const Index = () => {
     geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
     return geometry;
   };
+
+  // Load vessel STL from sessionStorage when navigating back from VesselGenerator
+  useEffect(() => {
+    const fromVessel = location.state?.fromVessel;
+    if (fromVessel) {
+      const stlString = sessionStorage.getItem('vesselSTL');
+      if (stlString) {
+        sessionStorage.removeItem('vesselSTL');
+        const geometry = parseSTL(stlString);
+        handleModelLoaded(geometry);
+        setShowLanding(false);
+        toast({ title: 'Vessel Loaded', description: 'Your ceramic vessel design is ready for material selection.' });
+      }
+      // Clear navigation state
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   const scrollToManufacturing = () => {
     document.getElementById('manufacturing-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
