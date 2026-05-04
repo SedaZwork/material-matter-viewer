@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Upload, ArrowRight } from 'lucide-react';
 
@@ -8,6 +9,7 @@ import recipeRing from '@/assets/recipe-ring.jpg';
 import recipeAcoustic from '@/assets/recipe-acoustic.jpg';
 import recipeCase from '@/assets/recipe-case.jpg';
 import recipeMap from '@/assets/recipe-map.jpg';
+import recipeVessel from '@/assets/recipe-vessel.jpg';
 
 interface Recipe {
   id: string;
