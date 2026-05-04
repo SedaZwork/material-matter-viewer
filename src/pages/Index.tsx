@@ -127,6 +127,7 @@ const Index = () => {
     }
   }, [location.state]);
 
+  const scrollToManufacturing = () => {
     document.getElementById('manufacturing-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
