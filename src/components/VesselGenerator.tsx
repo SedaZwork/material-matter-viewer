@@ -309,35 +309,6 @@ const VesselGenerator = () => {
     };
   }, [points, smoothCurvePoints, curvePoints, heightScale, radiusScale, textureStrength]);
 
-  // Save configuration and proceed to checkout
-  const saveAndContinue = () => {
-    const config = {
-      customization: {
-        points,
-        segments,
-        heightScale,
-        radiusScale,
-        textureType,
-        textureScaleX,
-        textureScaleY,
-        textureScaleZ,
-        textureStrength,
-      },
-      material,
-      quantity,
-    };
-    
-    navigate('/checkout', { 
-      state: { 
-        recipe,
-        config,
-        stlData: meshRef.current ? getSTLData() : null,
-        modelDimensions: calculateSurfaceAndDimensions,
-        surfaceArea: calculateSurfaceAndDimensions.surfaceArea
-      } 
-    });
-  };
-
   // Get STL data as string
   const getSTLData = (): string | null => {
     if (!meshRef.current) return null;
@@ -345,42 +316,17 @@ const VesselGenerator = () => {
     return exporter.parse(meshRef.current, { binary: false }) as string;
   };
 
-  // View in Material Viewer - navigate to model viewer page
+  // Export STL to sessionStorage and navigate to main customizer for material selection & checkout
   const viewInMaterialViewer = () => {
     if (!meshRef.current) return;
-    const exporter = new STLExporter();
-    const stlString = exporter.parse(meshRef.current, { binary: false }) as string;
-    
-    // Store in sessionStorage for the viewer to pick up
-    sessionStorage.setItem('importedSTL', stlString);
-    sessionStorage.setItem('importedSTLName', 'ceramic-vessel');
-    
-    // Navigate to model viewer with the STL data
-    const config = {
-      customization: {
-        points,
-        segments,
-        heightScale,
-        radiusScale,
-        textureType,
-        textureScaleX,
-        textureScaleY,
-        textureScaleZ,
-        textureStrength,
-      },
-      material,
-      quantity,
-    };
-    
-    navigate('/viewer', { 
-      state: { 
-        recipe,
-        config,
-        stlData: stlString,
-        modelDimensions: calculateSurfaceAndDimensions,
-        surfaceArea: calculateSurfaceAndDimensions.surfaceArea
-      } 
-    });
+    const stlString = getSTLData();
+    if (!stlString) return;
+    sessionStorage.setItem('vesselSTL', stlString);
+    navigate('/', { state: { fromVessel: true } });
+  };
+
+  const saveAndContinue = () => {
+    viewInMaterialViewer();
   };
 
   return (
