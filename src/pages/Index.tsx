@@ -110,7 +110,23 @@ const Index = () => {
     return geometry;
   };
 
-  const scrollToManufacturing = () => {
+  // Load vessel STL from sessionStorage when navigating back from VesselGenerator
+  useEffect(() => {
+    const fromVessel = location.state?.fromVessel;
+    if (fromVessel) {
+      const stlString = sessionStorage.getItem('vesselSTL');
+      if (stlString) {
+        sessionStorage.removeItem('vesselSTL');
+        const geometry = parseSTL(stlString);
+        handleModelLoaded(geometry);
+        setShowLanding(false);
+        toast({ title: 'Vessel Loaded', description: 'Your ceramic vessel design is ready for material selection.' });
+      }
+      // Clear navigation state
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+
     document.getElementById('manufacturing-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
