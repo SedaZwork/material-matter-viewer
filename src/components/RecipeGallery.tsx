@@ -31,6 +31,15 @@ const recipes: Recipe[] = [
     available: true,
   },
   {
+    id: 'ceramic-vessel',
+    title: 'Ceramic Vessel',
+    subtitle: 'Procedural lathe design with texture patterns — porcelain & stoneware',
+    image: recipeVessel,
+    tags: ['Ceramic', 'Procedural', 'Lathe'],
+    available: true,
+    generatorRoute: '/vessel-generator',
+  },
+  {
     id: 'ring',
     title: 'Structural Ring',
     subtitle: 'Text/image → metal powder 3D printed architectural jewelry',
