@@ -18,6 +18,7 @@ interface Recipe {
   image: string;
   tags: string[];
   available: boolean;
+  generatorRoute?: string;
 }
 
 const recipes: Recipe[] = [
