@@ -87,9 +87,13 @@ interface RecipeGalleryProps {
 
 const RecipeGallery: React.FC<RecipeGalleryProps> = ({ onEnterCustomizer }) => {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   const handleRecipeClick = (recipe: Recipe) => {
-    if (recipe.available) {
+    if (!recipe.available) return;
+    if (recipe.generatorRoute) {
+      navigate(recipe.generatorRoute);
+    } else {
       onEnterCustomizer();
     }
   };
