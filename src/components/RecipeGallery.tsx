@@ -77,7 +77,8 @@ const recipes: Recipe[] = [
     subtitle: 'Custom map by coordinates — CNC machined or 3D printed',
     image: recipeMap,
     tags: ['CNC', 'Wood', 'Multicolor FDM'],
-    available: false,
+    available: true,
+    generatorRoute: '/terrain-generator',
   },
 ];
 

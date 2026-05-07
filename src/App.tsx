@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import VesselGenerator from "./components/VesselGenerator";
+import TerrainGenerator from "./components/TerrainGenerator";
 
 const queryClient = new QueryClient();
 
@@ -21,6 +22,7 @@ const App = () => {
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/vessel-generator" element={<VesselGenerator />} />
+            <Route path="/terrain-generator" element={<TerrainGenerator />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

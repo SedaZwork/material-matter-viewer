@@ -18,4 +18,13 @@ export const productRecipes: ProductRecipe[] = [
     available: true,
     generatorRoute: '/vessel-generator',
   },
+  {
+    id: 'terrain-model',
+    title: 'Terrain Scale Model',
+    subtitle: 'Custom map by coordinates — CNC machined or 3D printed',
+    tags: ['CNC', 'Wood', 'Multicolor FDM'],
+    materials: ['sandstone', 'pla', 'resin', 'wood', 'multicolor'],
+    available: true,
+    generatorRoute: '/terrain-generator',
+  },
 ];
