@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.find_matching_fabricators(numeric, numeric, numeric) TO anon, authenticated;
