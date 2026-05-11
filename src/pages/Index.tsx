@@ -110,19 +110,33 @@ const Index = () => {
     return geometry;
   };
 
-  // Load vessel STL from sessionStorage when navigating back from VesselGenerator
+  // Load model from sessionStorage when navigating back from a generator
   useEffect(() => {
     const fromVessel = location.state?.fromVessel;
     if (fromVessel) {
-      const stlString = sessionStorage.getItem('vesselSTL');
-      if (stlString) {
-        sessionStorage.removeItem('vesselSTL');
-        const geometry = parseSTL(stlString);
-        handleModelLoaded(geometry);
-        setShowLanding(false);
-        toast({ title: 'Vessel Loaded', description: 'Your ceramic vessel design is ready for material selection.' });
+      // Prefer JSON geometry (preserves vertex colors for multicolor 3MF preview)
+      const jsonStr = sessionStorage.getItem('transferGeometryJSON');
+      if (jsonStr) {
+        sessionStorage.removeItem('transferGeometryJSON');
+        try {
+          const loader = new THREE.BufferGeometryLoader();
+          const geometry = loader.parse(JSON.parse(jsonStr));
+          handleModelLoaded(geometry);
+          setShowLanding(false);
+          toast({ title: 'Model Loaded', description: 'Your design is ready — colors preserved for multicolor printing.' });
+        } catch (e) {
+          logger.error('Failed to parse transferred geometry', e);
+        }
+      } else {
+        const stlString = sessionStorage.getItem('vesselSTL');
+        if (stlString) {
+          sessionStorage.removeItem('vesselSTL');
+          const geometry = parseSTL(stlString);
+          handleModelLoaded(geometry);
+          setShowLanding(false);
+          toast({ title: 'Vessel Loaded', description: 'Your ceramic vessel design is ready for material selection.' });
+        }
       }
-      // Clear navigation state
       window.history.replaceState({}, document.title);
     }
   }, [location.state]);
