@@ -265,6 +265,7 @@ const TerrainGenerator = () => {
       const res = parseInt(resolution);
       const z = parseInt(zoom);
       const hm = await fetchHeightmap(lat, lon, areaKm, res, z);
+      heightmapRef.current = hm;
       setElevRange({ min: hm.minElev, max: hm.maxElev });
 
       // Remove old mesh
