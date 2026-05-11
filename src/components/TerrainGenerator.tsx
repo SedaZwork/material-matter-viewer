@@ -674,6 +674,26 @@ const TerrainGenerator = () => {
           </div>
           <div className="flex gap-2">
             <Button
+              onClick={download3MF}
+              disabled={!terrainLoaded}
+              variant="outline"
+              className="flex-1 rounded-xl bg-white/40 border-white/50 text-black/60 hover:bg-white/60 hover:text-black"
+              title="3MF with per-triangle color data — multicolor FDM"
+            >
+              <Download className="w-3.5 h-3.5 mr-1.5" /> 3MF · Color
+            </Button>
+            <Button
+              onClick={downloadOpenSCAD}
+              disabled={!terrainLoaded}
+              variant="outline"
+              className="flex-1 rounded-xl bg-white/40 border-white/50 text-black/60 hover:bg-white/60 hover:text-black"
+              title="OpenSCAD source — solid, stratoconception (laser-cut plywood) and voxelized modules"
+            >
+              <Download className="w-3.5 h-3.5 mr-1.5" /> .scad
+            </Button>
+          </div>
+          <div className="flex gap-2">
+            <Button
               onClick={viewInCustomizer}
               disabled={!terrainLoaded}
               variant="outline"
