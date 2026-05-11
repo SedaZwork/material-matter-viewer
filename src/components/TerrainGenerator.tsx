@@ -10,6 +10,10 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { useCamera } from '@/hooks/useCamera';
+import { exportMeshAs3MF } from '@/utils/threeMFExporter';
+import { generateTerrainOpenSCAD } from '@/utils/openScadGenerator';
+
+type Heightmap = { data: Float32Array; width: number; height: number; minElev: number; maxElev: number };
 
 interface QuickLocation {
   name: string;
@@ -168,6 +172,7 @@ const TerrainGenerator = () => {
 
   const { videoRef, isActive: cameraActive, error: cameraError, start: startCamera, stop: stopCamera } = useCamera();
   const [arMode, setArMode] = useState(false);
+  const heightmapRef = useRef<Heightmap | null>(null);
 
   const toggleAR = async () => {
     if (arMode) {
@@ -260,6 +265,7 @@ const TerrainGenerator = () => {
       const res = parseInt(resolution);
       const z = parseInt(zoom);
       const hm = await fetchHeightmap(lat, lon, areaKm, res, z);
+      heightmapRef.current = hm;
       setElevRange({ min: hm.minElev, max: hm.maxElev });
 
       // Remove old mesh
@@ -408,10 +414,40 @@ const TerrainGenerator = () => {
     const exporter = new STLExporter();
     const stlString = exporter.parse(meshRef.current);
     const blob = new Blob([stlString], { type: 'application/octet-stream' });
+    triggerDownload(blob, `terrain_${lat.toFixed(4)}_${lon.toFixed(4)}.stl`);
+  };
+
+  const download3MF = () => {
+    if (!meshRef.current) return;
+    const blob = exportMeshAs3MF(meshRef.current);
+    triggerDownload(blob, `terrain_${lat.toFixed(4)}_${lon.toFixed(4)}.3mf`);
+  };
+
+  const downloadOpenSCAD = () => {
+    const hm = heightmapRef.current;
+    if (!hm) return;
+    const code = generateTerrainOpenSCAD({
+      heightData: hm.data,
+      width: hm.width,
+      height: hm.height,
+      minElev: hm.minElev,
+      maxElev: hm.maxElev,
+      longSideMm,
+      baseHeightMm: baseHeight,
+      areaKm,
+      zExaggeration,
+      lat,
+      lon,
+    });
+    const blob = new Blob([code], { type: 'text/plain;charset=utf-8' });
+    triggerDownload(blob, `terrain_${lat.toFixed(4)}_${lon.toFixed(4)}.scad`);
+  };
+
+  const triggerDownload = (blob: Blob, filename: string) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `terrain_${lat.toFixed(4)}_${lon.toFixed(4)}.stl`;
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -634,6 +670,26 @@ const TerrainGenerator = () => {
               className="flex-1 rounded-xl bg-white/40 border-white/50 text-black/60 hover:bg-white/60 hover:text-black"
             >
               <Download className="w-3.5 h-3.5 mr-1.5" /> STL
+            </Button>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              onClick={download3MF}
+              disabled={!terrainLoaded}
+              variant="outline"
+              className="flex-1 rounded-xl bg-white/40 border-white/50 text-black/60 hover:bg-white/60 hover:text-black"
+              title="3MF with per-triangle color data — multicolor FDM"
+            >
+              <Download className="w-3.5 h-3.5 mr-1.5" /> 3MF · Color
+            </Button>
+            <Button
+              onClick={downloadOpenSCAD}
+              disabled={!terrainLoaded}
+              variant="outline"
+              className="flex-1 rounded-xl bg-white/40 border-white/50 text-black/60 hover:bg-white/60 hover:text-black"
+              title="OpenSCAD source — solid, stratoconception (laser-cut plywood) and voxelized modules"
+            >
+              <Download className="w-3.5 h-3.5 mr-1.5" /> .scad
             </Button>
           </div>
           <div className="flex gap-2">
