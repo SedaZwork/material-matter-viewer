@@ -10,6 +10,10 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { useCamera } from '@/hooks/useCamera';
+import { exportMeshAs3MF } from '@/utils/threeMFExporter';
+import { generateTerrainOpenSCAD } from '@/utils/openScadGenerator';
+
+type Heightmap = { data: Float32Array; width: number; height: number; minElev: number; maxElev: number };
 
 interface QuickLocation {
   name: string;
