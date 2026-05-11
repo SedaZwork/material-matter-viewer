@@ -45,11 +45,19 @@ const Model: React.FC<ModelProps> = ({ materialColor, geometry, scale }) => {
 
   if (!geometry) return null;
 
+  const hasVertexColors = !!geometry.attributes.color;
+
   return (
     <group scale={[scale, scale, scale]}>
       <mesh ref={meshRef}>
         <primitive object={geometry} />
-        <meshStandardMaterial color={materialColor} roughness={0.3} metalness={0.1} side={THREE.DoubleSide} />
+        <meshStandardMaterial
+          color={hasVertexColors ? '#ffffff' : materialColor}
+          vertexColors={hasVertexColors}
+          roughness={0.55}
+          metalness={0.05}
+          side={THREE.DoubleSide}
+        />
       </mesh>
     </group>
   );

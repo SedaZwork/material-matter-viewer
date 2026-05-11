@@ -454,9 +454,14 @@ const TerrainGenerator = () => {
 
   const viewInCustomizer = () => {
     if (!meshRef.current) return;
-    const exporter = new STLExporter();
-    const stlString = exporter.parse(meshRef.current);
-    sessionStorage.setItem('vesselSTL', stlString);
+    // Bake mesh world transform into geometry so colors + scale survive transfer.
+    meshRef.current.updateMatrixWorld(true);
+    const baked = meshRef.current.geometry.clone();
+    baked.applyMatrix4(meshRef.current.matrixWorld);
+    const json = baked.toJSON();
+    sessionStorage.setItem('transferGeometryJSON', JSON.stringify(json));
+    sessionStorage.removeItem('vesselSTL');
+    baked.dispose();
     navigate('/', { state: { fromVessel: true } });
   };
 
