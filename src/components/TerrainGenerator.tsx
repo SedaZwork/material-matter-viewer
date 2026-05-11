@@ -172,6 +172,7 @@ const TerrainGenerator = () => {
 
   const { videoRef, isActive: cameraActive, error: cameraError, start: startCamera, stop: stopCamera } = useCamera();
   const [arMode, setArMode] = useState(false);
+  const heightmapRef = useRef<Heightmap | null>(null);
 
   const toggleAR = async () => {
     if (arMode) {
