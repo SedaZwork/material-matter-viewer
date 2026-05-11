@@ -120,5 +120,5 @@ export function exportMeshAs3MF(mesh: THREE.Mesh): Blob {
     '3D/3dmodel.model': strToU8(modelXML),
   });
 
-  return new Blob([zipped], { type: 'model/3mf' });
+  return new Blob([zipped.buffer as ArrayBuffer], { type: 'model/3mf' });
 }
