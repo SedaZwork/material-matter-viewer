@@ -414,10 +414,40 @@ const TerrainGenerator = () => {
     const exporter = new STLExporter();
     const stlString = exporter.parse(meshRef.current);
     const blob = new Blob([stlString], { type: 'application/octet-stream' });
+    triggerDownload(blob, `terrain_${lat.toFixed(4)}_${lon.toFixed(4)}.stl`);
+  };
+
+  const download3MF = () => {
+    if (!meshRef.current) return;
+    const blob = exportMeshAs3MF(meshRef.current);
+    triggerDownload(blob, `terrain_${lat.toFixed(4)}_${lon.toFixed(4)}.3mf`);
+  };
+
+  const downloadOpenSCAD = () => {
+    const hm = heightmapRef.current;
+    if (!hm) return;
+    const code = generateTerrainOpenSCAD({
+      heightData: hm.data,
+      width: hm.width,
+      height: hm.height,
+      minElev: hm.minElev,
+      maxElev: hm.maxElev,
+      longSideMm,
+      baseHeightMm: baseHeight,
+      areaKm,
+      zExaggeration,
+      lat,
+      lon,
+    });
+    const blob = new Blob([code], { type: 'text/plain;charset=utf-8' });
+    triggerDownload(blob, `terrain_${lat.toFixed(4)}_${lon.toFixed(4)}.scad`);
+  };
+
+  const triggerDownload = (blob: Blob, filename: string) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `terrain_${lat.toFixed(4)}_${lon.toFixed(4)}.stl`;
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
   };
