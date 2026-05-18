@@ -8,6 +8,7 @@ import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import VesselGenerator from "./components/VesselGenerator";
 import TerrainGenerator from "./components/TerrainGenerator";
+import RingGenerator from "./components/RingGenerator";
 
 const queryClient = new QueryClient();
 
