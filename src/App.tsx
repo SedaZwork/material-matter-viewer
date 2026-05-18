@@ -24,6 +24,7 @@ const App = () => {
             <Route path="/auth" element={<Auth />} />
             <Route path="/vessel-generator" element={<VesselGenerator />} />
             <Route path="/terrain-generator" element={<TerrainGenerator />} />
+            <Route path="/ring-generator" element={<RingGenerator />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
