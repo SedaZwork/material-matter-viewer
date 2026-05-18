@@ -5,3 +5,9 @@ verify_jwt = true
 
 [functions.thingiverse-proxy]
 verify_jwt = false
+
+[functions.kie-nano-banana]
+verify_jwt = false
+
+[functions.piapi-trellis]
+verify_jwt = false
