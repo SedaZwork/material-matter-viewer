@@ -42,10 +42,11 @@ const recipes: Recipe[] = [
   {
     id: 'ring',
     title: 'Structural Ring',
-    subtitle: 'Text/image → metal powder 3D printed architectural jewelry',
+    subtitle: 'Text/image → AI concept → Trellis 3D → metal powder 3D printed jewelry',
     image: recipeRing,
-    tags: ['Metal Print', 'AI Generated', 'Xometry'],
-    available: false,
+    tags: ['AI Generated', 'Nano Banana', 'Trellis 3D', 'Metal Print'],
+    available: true,
+    generatorRoute: '/ring-generator',
   },
   {
     id: 'sneakers',
