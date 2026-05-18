@@ -16,55 +16,109 @@ export type Database = {
     Tables: {
       fabricators: {
         Row: {
+          accepts_rush_orders: boolean | null
+          approval_date: string | null
           build_volume_x: number
           build_volume_y: number
           build_volume_z: number
           business_name: string
+          certifications: string[] | null
+          city: string
+          contact_email: string
+          contact_phone: string
+          country: string
           created_at: string
           current_capacity: number
+          description: string
           id: string
           is_active: boolean
+          is_approved: boolean | null
+          layer_resolution: number | null
+          lead_time: number
           location_address: string
           location_lat: number
           location_lng: number
+          materials: string[]
+          max_order_value: number | null
+          min_order_value: number | null
+          postal_code: string
           price_multiplier: number
+          quality_standards: string | null
+          state: string
           technologies: Database["public"]["Enums"]["fabricator_technology"][]
           updated_at: string
           user_id: string
+          website: string | null
         }
         Insert: {
+          accepts_rush_orders?: boolean | null
+          approval_date?: string | null
           build_volume_x?: number
           build_volume_y?: number
           build_volume_z?: number
           business_name: string
+          certifications?: string[] | null
+          city?: string
+          contact_email?: string
+          contact_phone?: string
+          country?: string
           created_at?: string
           current_capacity?: number
+          description?: string
           id?: string
           is_active?: boolean
+          is_approved?: boolean | null
+          layer_resolution?: number | null
+          lead_time?: number
           location_address: string
           location_lat: number
           location_lng: number
+          materials?: string[]
+          max_order_value?: number | null
+          min_order_value?: number | null
+          postal_code?: string
           price_multiplier?: number
+          quality_standards?: string | null
+          state?: string
           technologies: Database["public"]["Enums"]["fabricator_technology"][]
           updated_at?: string
           user_id: string
+          website?: string | null
         }
         Update: {
+          accepts_rush_orders?: boolean | null
+          approval_date?: string | null
           build_volume_x?: number
           build_volume_y?: number
           build_volume_z?: number
           business_name?: string
+          certifications?: string[] | null
+          city?: string
+          contact_email?: string
+          contact_phone?: string
+          country?: string
           created_at?: string
           current_capacity?: number
+          description?: string
           id?: string
           is_active?: boolean
+          is_approved?: boolean | null
+          layer_resolution?: number | null
+          lead_time?: number
           location_address?: string
           location_lat?: number
           location_lng?: number
+          materials?: string[]
+          max_order_value?: number | null
+          min_order_value?: number | null
+          postal_code?: string
           price_multiplier?: number
+          quality_standards?: string | null
+          state?: string
           technologies?: Database["public"]["Enums"]["fabricator_technology"][]
           updated_at?: string
           user_id?: string
+          website?: string | null
         }
         Relationships: []
       }
@@ -129,6 +183,8 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
+          bio: string | null
           country: string | null
           created_at: string
           display_name: string | null
@@ -140,6 +196,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          avatar_url?: string | null
+          bio?: string | null
           country?: string | null
           created_at?: string
           display_name?: string | null
@@ -151,6 +209,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          avatar_url?: string | null
+          bio?: string | null
           country?: string | null
           created_at?: string
           display_name?: string | null
