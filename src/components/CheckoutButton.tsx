@@ -5,7 +5,7 @@ import { ShoppingCart, Check, LogIn } from 'lucide-react';
 import { Material, PrintSettings } from '@/types/materials';
 import { PaymentDialog } from '@/components/PaymentDialog';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseService } from '@/services/SupabaseService';
 import { useAuth } from '@/hooks/useAuth';
 import { logger } from '@/utils/logger';
 
@@ -32,14 +32,14 @@ const CheckoutButton: React.FC<CheckoutButtonProps> = ({
 
   const handlePaymentComplete = async (paymentMethod: string, customerDetails: any) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await supabaseService.getAuth().getUser();
       
       if (!user) {
         toast.error('You must be logged in to place an order');
         return;
       }
 
-      const { error } = await supabase.from('print_jobs').insert({
+      const { error } = await supabaseService.client().from('print_jobs').insert({
         user_id: user.id,
         material_name: material?.name || 'Unknown',
         volume: settings.volume * scale * scale * scale,

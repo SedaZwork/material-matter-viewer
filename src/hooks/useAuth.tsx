@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
+import { User, Session } from '@supabaseService.getAuth()/supabaseService.getAuth()-js';
+import { supabaseService.getAuth()Service } from '@/services/SupabaseService';
 
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -8,7 +8,7 @@ export const useAuth = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    const { data: { subscription } } = supabaseService.getAuth().auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
@@ -16,7 +16,7 @@ export const useAuth = () => {
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabaseService.getAuth().auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -26,13 +26,13 @@ export const useAuth = () => {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabaseService.getAuth().auth.signInWithPassword({ email, password });
     return { error };
   };
 
   const signUp = async (email: string, password: string, displayName?: string) => {
     const redirectUrl = `${window.location.origin}/`;
-    const { error } = await supabase.auth.signUp({
+    const { error } = await supabaseService.getAuth().auth.signUp({
       email,
       password,
       options: {
@@ -44,7 +44,7 @@ export const useAuth = () => {
   };
 
   const signInWithGoogle = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { error } = await supabaseService.getAuth().auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: `${window.location.origin}/` }
     });
@@ -52,7 +52,7 @@ export const useAuth = () => {
   };
 
   const signInWithApple = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { error } = await supabaseService.getAuth().auth.signInWithOAuth({
       provider: 'apple',
       options: { redirectTo: `${window.location.origin}/` }
     });
@@ -60,7 +60,7 @@ export const useAuth = () => {
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
+    const { error } = await supabaseService.getAuth().auth.signOut();
     return { error };
   };
 

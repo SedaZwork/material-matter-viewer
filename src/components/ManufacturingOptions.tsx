@@ -3,7 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { MapPin, DollarSign, Leaf, Zap } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseService } from '@/services/SupabaseService';
 import { Material, PrintSettings } from '@/types/materials';
 import { toast } from 'sonner';
 import { logger } from '@/utils/logger';
@@ -61,9 +61,10 @@ const ManufacturingOptions: React.FC<ManufacturingOptionsProps> = ({
       let userLat: number | null = null;
       let userLng: number | null = null;
       
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await supabaseService.getAuth().getUser();
       if (user) {
-        const { data: profile } = await supabase
+        const { data: profile } = await supabaseService
+          .client()
           .from('profiles')
           .select('location_lat, location_lng')
           .eq('user_id', user.id)
@@ -97,7 +98,8 @@ const ManufacturingOptions: React.FC<ManufacturingOptionsProps> = ({
         depth: dimensions.depth * scale,
       };
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseService
+        .client()
         .rpc('find_matching_fabricators', {
           p_min_x: scaledDimensions.width,
           p_min_y: scaledDimensions.height,

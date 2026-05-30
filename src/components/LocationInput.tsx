@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { MapPin } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseService } from '@/services/SupabaseService';
 import { toast } from 'sonner';
 import { geocodeAddress, validateGeocodingInput } from '@/utils/geocoding';
 import { logger } from '@/utils/logger';
@@ -20,7 +20,7 @@ export const LocationInput: React.FC<LocationInputProps> = ({ onLocationChange }
   // Load user's saved location
   useEffect(() => {
     const loadUserLocation = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await supabaseService.getAuth().getUser();
       if (user) {
         const { data: profile } = await supabase
           .from('profiles')
@@ -64,7 +64,7 @@ export const LocationInput: React.FC<LocationInputProps> = ({ onLocationChange }
         onLocationChange(location.lat, location.lng, postalCode, country);
         
         // Save to user profile if logged in
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user } } = await supabaseService.getAuth().getUser();
         if (user) {
           await supabase
             .from('profiles')

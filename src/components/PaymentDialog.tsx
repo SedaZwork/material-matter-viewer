@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CreditCard, Wallet, Bitcoin, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseService } from '@/services/SupabaseService';
 import { z } from 'zod';
 import { logger } from '@/utils/logger';
 

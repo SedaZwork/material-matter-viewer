@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseService } from '@/services/SupabaseService';
 import { logger } from '@/utils/logger';
 import { Material, PrintSettings } from '@/types/materials';
 import { materials } from '@/data/materials';
@@ -75,7 +75,7 @@ const Index = () => {
     setIsLoading(true);
     toast({ title: "Downloading Model", description: `Loading ${modelName}...` });
     try {
-      const { data, error } = await supabase.functions.invoke('thingiverse-proxy', {
+      const { data, error } = await supabaseService.invokeFunction('thingiverse‑proxy', {
         body: { url: downloadUrl, action: 'download' }, method: 'POST',
       });
       if (error) throw error;

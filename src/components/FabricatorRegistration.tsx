@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseService } from '@/services/SupabaseService';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import {
@@ -101,7 +101,8 @@ export const FabricatorRegistration = () => {
       }
 
       // Insert fabricator data
-      const { error } = await supabase
+      const { error } = await supabaseService
+        .client()
         .from('fabricators')
         .insert({
           user_id: user.id,

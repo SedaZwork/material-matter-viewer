@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseService } from '@/services/SupabaseService';
 import { useToast } from '@/hooks/use-toast';
 import { logger } from '@/utils/logger';
 import { Button } from '@/components/ui/button';
@@ -49,7 +49,7 @@ const RingGenerator: React.FC = () => {
     setModelUrl(null);
 
     try {
-      const { data: createRes, error: createErr } = await supabase.functions.invoke('kie-nano-banana', {
+      const { data: createRes, error: createErr } = await supabaseService.invokeFunction('kie-nano-banana', {
         body: {
           action: 'create',
           prompt,
@@ -65,7 +65,7 @@ const RingGenerator: React.FC = () => {
 
       for (let i = 0; i < MAX_POLLS_IMAGE; i++) {
         await sleep(POLL_INTERVAL_MS);
-        const { data: statusRes } = await supabase.functions.invoke('kie-nano-banana', {
+        const { data: statusRes } = await supabaseService.invokeFunction('kie-nano-banana', {
           body: { action: 'status', taskId },
         });
         if (statusRes?.state === 'success' && statusRes?.imageUrl) {
@@ -99,7 +99,7 @@ const RingGenerator: React.FC = () => {
     setModelUrl(null);
 
     try {
-      const { data: createRes, error: createErr } = await supabase.functions.invoke('piapi-trellis', {
+      const { data: createRes, error: createErr } = await supabaseService.invokeFunction('piapi-trellis', {
         body: { action: 'create', imageUrl: conceptImageUrl },
       });
       if (createErr || !createRes?.taskId) throw new Error(createErr?.message || 'Failed to create 3D task');
@@ -109,7 +109,7 @@ const RingGenerator: React.FC = () => {
 
       for (let i = 0; i < MAX_POLLS_MODEL; i++) {
         await sleep(POLL_INTERVAL_MS);
-        const { data: statusRes } = await supabase.functions.invoke('piapi-trellis', {
+        const { data: statusRes } = await supabaseService.invokeFunction('piapi-trellis', {
           body: { action: 'status', taskId },
         });
         const s = statusRes?.state;
