@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.piapi-trellis]
 verify_jwt = false
+
+[functions.mirror-generated-model]
+verify_jwt = false

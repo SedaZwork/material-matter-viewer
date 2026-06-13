@@ -39,7 +39,14 @@ const CheckoutButton: React.FC<CheckoutButtonProps> = ({
         return;
       }
 
-      const { error } = await supabase.from('print_jobs').insert({
+      // Pull AI-generation context (set by RingGenerator) if present.
+      let genCtx: any = null;
+      try {
+        const raw = sessionStorage.getItem('ringGenerationContext');
+        if (raw) genCtx = JSON.parse(raw);
+      } catch { /* ignore */ }
+
+      const insertRow: Record<string, any> = {
         user_id: user.id,
         material_name: material?.name || 'Unknown',
         volume: settings.volume * scale * scale * scale,
@@ -50,12 +57,35 @@ const CheckoutButton: React.FC<CheckoutButtonProps> = ({
         technology: 'FDM',
         assigned_fabricator_id: selectedFabricatorId,
         final_cost: finalCost * quantity,
-        status: 'pending'
-      });
+        status: 'pending',
+        source: genCtx?.source ?? 'upload',
+      };
+      if (genCtx?.refCode) insertRow.ref_code = genCtx.refCode;
+      if (genCtx?.modelStoragePath) insertRow.model_storage_path = genCtx.modelStoragePath;
+      if (genCtx?.conceptImageUrl) insertRow.concept_image_url = genCtx.conceptImageUrl;
+      if (genCtx?.generationPrompt) insertRow.generation_prompt = genCtx.generationPrompt;
+      if (genCtx?.generationMetadata) {
+        insertRow.generation_metadata = {
+          ...genCtx.generationMetadata,
+          customer: { email: customerDetails?.email },
+          payment_method: paymentMethod,
+          quantity,
+          scale,
+        };
+      }
+
+      const { data: inserted, error } = await supabase
+        .from('print_jobs')
+        .insert(insertRow as any)
+        .select('id, ref_code')
+        .single();
 
       if (error) throw error;
 
-      toast.success(`Order placed successfully! Payment: ${paymentMethod} 🎉`);
+      // Clear one-shot generation context after successful order.
+      sessionStorage.removeItem('ringGenerationContext');
+
+      toast.success(`Order ${inserted?.ref_code ?? ''} placed! Payment: ${paymentMethod} 🎉`);
       toast.info(`Confirmation sent to ${customerDetails.email}`);
     } catch (error) {
       logger.error('Order placement failed', error);

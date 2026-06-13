@@ -10,7 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Sparkles, Box, ArrowRight, Loader2 } from 'lucide-react';
+import { ArrowLeft, Sparkles, Box, ArrowRight, Loader2, Upload } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 type Stage = 'idle' | 'generating-image' | 'image-ready' | 'generating-3d' | 'model-ready';
 
@@ -21,21 +22,83 @@ const MAX_POLLS_MODEL = 120;    // ~6 min
 const RingGenerator: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const [prompt, setPrompt] = useState(
     'A minimalist architectural ring, organic flowing structure, parametric geometry, white background, product photography, studio lighting'
   );
   const [referenceImageUrl, setReferenceImageUrl] = useState('');
+  const [uploadedRefPath, setUploadedRefPath] = useState<string | null>(null);
+  const [uploadedRefPreview, setUploadedRefPreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [conceptImageUrl, setConceptImageUrl] = useState<string | null>(null);
   const [modelUrl, setModelUrl] = useState<string | null>(null);
+  const [refCode, setRefCode] = useState<string | null>(null);
+  const [modelStoragePath, setModelStoragePath] = useState<string | null>(null);
   const [stage, setStage] = useState<Stage>('idle');
   const [statusMsg, setStatusMsg] = useState('');
 
   // 3D preview of the generated GLB
   const previewRef = useRef<HTMLDivElement>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+  const newRefCode = () =>
+    '0K3D-' +
+    Array.from(crypto.getRandomValues(new Uint8Array(5)))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('')
+      .toUpperCase();
+
+  // ── Reference image upload to 0K3D_Modelos_Generados/references/<uid>/ ─
+  const handleReferenceFile = async (file: File) => {
+    if (!user) {
+      toast({
+        title: 'Sign in to upload',
+        description: 'Uploading a reference image requires an account.',
+        variant: 'destructive',
+      });
+      navigate('/auth?returnTo=/ring-generator');
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Image files only', variant: 'destructive' });
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      toast({ title: 'Image too large', description: 'Max 8 MB.', variant: 'destructive' });
+      return;
+    }
+    setUploading(true);
+    try {
+      const ext = (file.name.split('.').pop() || 'png').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const path = `references/${user.id}/${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from('0K3D_Modelos_Generados')
+        .upload(path, file, { contentType: file.type, upsert: false });
+      if (upErr) throw upErr;
+      const { data: signed, error: signErr } = await supabase.storage
+        .from('0K3D_Modelos_Generados')
+        .createSignedUrl(path, 60 * 60 * 2);
+      if (signErr || !signed?.signedUrl) throw signErr || new Error('Signed URL failed');
+      setUploadedRefPath(path);
+      setUploadedRefPreview(signed.signedUrl);
+      setReferenceImageUrl(signed.signedUrl);
+      toast({ title: 'Reference uploaded' });
+    } catch (err) {
+      logger.error('Reference upload failed', err);
+      toast({
+        title: 'Upload failed',
+        description: err instanceof Error ? err.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
 
   // ── Step 1: Nano Banana concept generation ────────────────────────────
   const generateConcept = async () => {
@@ -114,10 +177,27 @@ const RingGenerator: React.FC = () => {
         });
         const s = statusRes?.state;
         if ((s === 'completed' || s === 'success') && statusRes?.modelUrl) {
-          setModelUrl(statusRes.modelUrl);
+          // Mirror the model into our bucket under a fresh ref code.
+          const code = newRefCode();
+          setStatusMsg('Saving model to your library…');
+          const { data: mirror, error: mirrorErr } = await supabase.functions.invoke(
+            'mirror-generated-model',
+            { body: { sourceUrl: statusRes.modelUrl, refCode: code } },
+          );
+          if (mirrorErr || !mirror?.signedUrl) {
+            logger.error('Mirror failed, falling back to source URL', mirrorErr);
+            setModelUrl(statusRes.modelUrl);
+          } else {
+            setModelUrl(mirror.signedUrl);
+            setModelStoragePath(mirror.path);
+            setRefCode(code);
+          }
           setStage('model-ready');
           setStatusMsg('');
-          toast({ title: '3D model ready', description: 'Continue to material selection & quoting.' });
+          toast({
+            title: '3D model ready',
+            description: code ? `Saved as ${code}` : 'Continue to material selection & quoting.',
+          });
           return;
         }
         if (s === 'failed' || s === 'fail') throw new Error('3D generation failed');
@@ -238,6 +318,23 @@ const RingGenerator: React.FC = () => {
 
       sessionStorage.setItem('transferGeometryJSON', JSON.stringify(merged.toJSON()));
       sessionStorage.removeItem('vesselSTL');
+      // Hand off generation context so checkout can record it on the print job.
+      sessionStorage.setItem(
+        'ringGenerationContext',
+        JSON.stringify({
+          source: 'generated',
+          refCode,
+          modelStoragePath,
+          conceptImageUrl,
+          generationPrompt: prompt,
+          generationMetadata: {
+            providers: { image: 'kie/nano-banana', mesh: 'piapi/trellis' },
+            referenceImagePath: uploadedRefPath,
+            referenceImageUrl: referenceImageUrl || null,
+            createdAt: new Date().toISOString(),
+          },
+        }),
+      );
       merged.dispose();
       navigate('/', { state: { fromVessel: true } });
     } catch (err) {
@@ -291,17 +388,67 @@ const RingGenerator: React.FC = () => {
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs text-black/70">Reference image URL (optional)</Label>
+            <div className="space-y-2">
+              <Label className="text-xs text-black/70">Reference image (optional)</Label>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleReferenceFile(f);
+                  e.currentTarget.value = '';
+                }}
+              />
+
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="bg-white/60 border-white/60"
+                  disabled={busy || uploading}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {uploading ? (
+                    <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Uploading…</>
+                  ) : (
+                    <><Upload className="w-3.5 h-3.5 mr-1.5" /> Upload image</>
+                  )}
+                </Button>
+                {uploadedRefPreview && (
+                  <div className="flex items-center gap-2">
+                    <img
+                      src={uploadedRefPreview}
+                      alt="Reference"
+                      className="w-10 h-10 rounded-md object-cover border border-white/60"
+                    />
+                    <button
+                      type="button"
+                      className="text-[11px] text-black/55 underline hover:text-black"
+                      onClick={() => {
+                        setUploadedRefPath(null);
+                        setUploadedRefPreview(null);
+                        setReferenceImageUrl('');
+                      }}
+                    >
+                      remove
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <Input
-                value={referenceImageUrl}
+                value={uploadedRefPreview ? '' : referenceImageUrl}
                 onChange={(e) => setReferenceImageUrl(e.target.value)}
-                placeholder="https://…"
+                placeholder="…or paste an image URL"
                 className="bg-white/60 border-white/50 text-sm"
-                disabled={busy}
+                disabled={busy || !!uploadedRefPreview}
               />
               <p className="text-[11px] text-black/50">
-                If provided, Nano Banana Edit will use it as visual reference.
+                When provided, Nano Banana Edit uses it as the visual reference.
               </p>
             </div>
 

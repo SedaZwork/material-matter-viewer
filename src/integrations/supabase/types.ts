@@ -126,12 +126,18 @@ export type Database = {
         Row: {
           assigned_fabricator_id: string | null
           base_cost: number
+          concept_image_url: string | null
           created_at: string
           estimated_print_time: number
           final_cost: number | null
+          generation_metadata: Json | null
+          generation_prompt: string | null
           id: string
           infill: number
           material_name: string
+          model_storage_path: string | null
+          ref_code: string
+          source: string
           status: string
           supports: boolean
           technology: Database["public"]["Enums"]["fabricator_technology"]
@@ -142,12 +148,18 @@ export type Database = {
         Insert: {
           assigned_fabricator_id?: string | null
           base_cost: number
+          concept_image_url?: string | null
           created_at?: string
           estimated_print_time: number
           final_cost?: number | null
+          generation_metadata?: Json | null
+          generation_prompt?: string | null
           id?: string
           infill: number
           material_name: string
+          model_storage_path?: string | null
+          ref_code?: string
+          source?: string
           status?: string
           supports: boolean
           technology: Database["public"]["Enums"]["fabricator_technology"]
@@ -158,12 +170,18 @@ export type Database = {
         Update: {
           assigned_fabricator_id?: string | null
           base_cost?: number
+          concept_image_url?: string | null
           created_at?: string
           estimated_print_time?: number
           final_cost?: number | null
+          generation_metadata?: Json | null
+          generation_prompt?: string | null
           id?: string
           infill?: number
           material_name?: string
+          model_storage_path?: string | null
+          ref_code?: string
+          source?: string
           status?: string
           supports?: boolean
           technology?: Database["public"]["Enums"]["fabricator_technology"]
@@ -246,6 +264,7 @@ export type Database = {
           price_multiplier: number
         }[]
       }
+      generate_print_job_ref_code: { Args: never; Returns: string }
     }
     Enums: {
       fabricator_technology: "FDM" | "SLA" | "SLS" | "MJF" | "Binder_Jetting"
