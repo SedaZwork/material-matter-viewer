@@ -388,17 +388,67 @@ const RingGenerator: React.FC = () => {
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs text-black/70">Reference image URL (optional)</Label>
+            <div className="space-y-2">
+              <Label className="text-xs text-black/70">Reference image (optional)</Label>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleReferenceFile(f);
+                  e.currentTarget.value = '';
+                }}
+              />
+
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="bg-white/60 border-white/60"
+                  disabled={busy || uploading}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {uploading ? (
+                    <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Uploading…</>
+                  ) : (
+                    <><Upload className="w-3.5 h-3.5 mr-1.5" /> Upload image</>
+                  )}
+                </Button>
+                {uploadedRefPreview && (
+                  <div className="flex items-center gap-2">
+                    <img
+                      src={uploadedRefPreview}
+                      alt="Reference"
+                      className="w-10 h-10 rounded-md object-cover border border-white/60"
+                    />
+                    <button
+                      type="button"
+                      className="text-[11px] text-black/55 underline hover:text-black"
+                      onClick={() => {
+                        setUploadedRefPath(null);
+                        setUploadedRefPreview(null);
+                        setReferenceImageUrl('');
+                      }}
+                    >
+                      remove
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <Input
-                value={referenceImageUrl}
+                value={uploadedRefPreview ? '' : referenceImageUrl}
                 onChange={(e) => setReferenceImageUrl(e.target.value)}
-                placeholder="https://…"
+                placeholder="…or paste an image URL"
                 className="bg-white/60 border-white/50 text-sm"
-                disabled={busy}
+                disabled={busy || !!uploadedRefPreview}
               />
               <p className="text-[11px] text-black/50">
-                If provided, Nano Banana Edit will use it as visual reference.
+                When provided, Nano Banana Edit uses it as the visual reference.
               </p>
             </div>
 
