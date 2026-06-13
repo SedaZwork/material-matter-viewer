@@ -177,10 +177,27 @@ const RingGenerator: React.FC = () => {
         });
         const s = statusRes?.state;
         if ((s === 'completed' || s === 'success') && statusRes?.modelUrl) {
-          setModelUrl(statusRes.modelUrl);
+          // Mirror the model into our bucket under a fresh ref code.
+          const code = newRefCode();
+          setStatusMsg('Saving model to your library…');
+          const { data: mirror, error: mirrorErr } = await supabase.functions.invoke(
+            'mirror-generated-model',
+            { body: { sourceUrl: statusRes.modelUrl, refCode: code } },
+          );
+          if (mirrorErr || !mirror?.signedUrl) {
+            logger.error('Mirror failed, falling back to source URL', mirrorErr);
+            setModelUrl(statusRes.modelUrl);
+          } else {
+            setModelUrl(mirror.signedUrl);
+            setModelStoragePath(mirror.path);
+            setRefCode(code);
+          }
           setStage('model-ready');
           setStatusMsg('');
-          toast({ title: '3D model ready', description: 'Continue to material selection & quoting.' });
+          toast({
+            title: '3D model ready',
+            description: code ? `Saved as ${code}` : 'Continue to material selection & quoting.',
+          });
           return;
         }
         if (s === 'failed' || s === 'fail') throw new Error('3D generation failed');
