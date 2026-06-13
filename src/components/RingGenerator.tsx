@@ -318,6 +318,23 @@ const RingGenerator: React.FC = () => {
 
       sessionStorage.setItem('transferGeometryJSON', JSON.stringify(merged.toJSON()));
       sessionStorage.removeItem('vesselSTL');
+      // Hand off generation context so checkout can record it on the print job.
+      sessionStorage.setItem(
+        'ringGenerationContext',
+        JSON.stringify({
+          source: 'generated',
+          refCode,
+          modelStoragePath,
+          conceptImageUrl,
+          generationPrompt: prompt,
+          generationMetadata: {
+            providers: { image: 'kie/nano-banana', mesh: 'piapi/trellis' },
+            referenceImagePath: uploadedRefPath,
+            referenceImageUrl: referenceImageUrl || null,
+            createdAt: new Date().toISOString(),
+          },
+        }),
+      );
       merged.dispose();
       navigate('/', { state: { fromVessel: true } });
     } catch (err) {
