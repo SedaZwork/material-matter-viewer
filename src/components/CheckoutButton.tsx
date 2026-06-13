@@ -76,7 +76,7 @@ const CheckoutButton: React.FC<CheckoutButtonProps> = ({
 
       const { data: inserted, error } = await supabase
         .from('print_jobs')
-        .insert(insertRow)
+        .insert(insertRow as any)
         .select('id, ref_code')
         .single();
 
