@@ -10,7 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Sparkles, Box, ArrowRight, Loader2 } from 'lucide-react';
+import { ArrowLeft, Sparkles, Box, ArrowRight, Loader2, Upload } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 type Stage = 'idle' | 'generating-image' | 'image-ready' | 'generating-3d' | 'model-ready';
 
