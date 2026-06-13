@@ -22,21 +22,83 @@ const MAX_POLLS_MODEL = 120;    // ~6 min
 const RingGenerator: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const [prompt, setPrompt] = useState(
     'A minimalist architectural ring, organic flowing structure, parametric geometry, white background, product photography, studio lighting'
   );
   const [referenceImageUrl, setReferenceImageUrl] = useState('');
+  const [uploadedRefPath, setUploadedRefPath] = useState<string | null>(null);
+  const [uploadedRefPreview, setUploadedRefPreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [conceptImageUrl, setConceptImageUrl] = useState<string | null>(null);
   const [modelUrl, setModelUrl] = useState<string | null>(null);
+  const [refCode, setRefCode] = useState<string | null>(null);
+  const [modelStoragePath, setModelStoragePath] = useState<string | null>(null);
   const [stage, setStage] = useState<Stage>('idle');
   const [statusMsg, setStatusMsg] = useState('');
 
   // 3D preview of the generated GLB
   const previewRef = useRef<HTMLDivElement>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+  const newRefCode = () =>
+    '0K3D-' +
+    Array.from(crypto.getRandomValues(new Uint8Array(5)))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('')
+      .toUpperCase();
+
+  // ── Reference image upload to 0K3D_Modelos_Generados/references/<uid>/ ─
+  const handleReferenceFile = async (file: File) => {
+    if (!user) {
+      toast({
+        title: 'Sign in to upload',
+        description: 'Uploading a reference image requires an account.',
+        variant: 'destructive',
+      });
+      navigate('/auth?returnTo=/ring-generator');
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Image files only', variant: 'destructive' });
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      toast({ title: 'Image too large', description: 'Max 8 MB.', variant: 'destructive' });
+      return;
+    }
+    setUploading(true);
+    try {
+      const ext = (file.name.split('.').pop() || 'png').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const path = `references/${user.id}/${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from('0K3D_Modelos_Generados')
+        .upload(path, file, { contentType: file.type, upsert: false });
+      if (upErr) throw upErr;
+      const { data: signed, error: signErr } = await supabase.storage
+        .from('0K3D_Modelos_Generados')
+        .createSignedUrl(path, 60 * 60 * 2);
+      if (signErr || !signed?.signedUrl) throw signErr || new Error('Signed URL failed');
+      setUploadedRefPath(path);
+      setUploadedRefPreview(signed.signedUrl);
+      setReferenceImageUrl(signed.signedUrl);
+      toast({ title: 'Reference uploaded' });
+    } catch (err) {
+      logger.error('Reference upload failed', err);
+      toast({
+        title: 'Upload failed',
+        description: err instanceof Error ? err.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
 
   // ── Step 1: Nano Banana concept generation ────────────────────────────
   const generateConcept = async () => {
