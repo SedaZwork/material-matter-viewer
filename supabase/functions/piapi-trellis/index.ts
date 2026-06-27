@@ -7,10 +7,14 @@ interface CreateBody {
   action: 'create';
   imageUrl: string;
   seed?: number;
-  ssSamplingSteps?: number;
-  slatSamplingSteps?: number;
+  ssSamplingSteps?: number;       // 1-50, default 50 (max detail)
+  slatSamplingSteps?: number;     // 1-50, default 50 (max detail)
+  ssGuidanceStrength?: number;    // sparse-structure guidance, default 7.5
+  slatGuidanceStrength?: number;  // texture/latent guidance, default 3
 }
 interface StatusBody { action: 'status'; taskId: string; }
+
+const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -35,10 +39,11 @@ Deno.serve(async (req) => {
         task_type: 'image-to-3d',
         input: {
           image: body.imageUrl,
-          ss_sampling_steps: body.ssSamplingSteps ?? 20,
-          slat_sampling_steps: body.slatSamplingSteps ?? 20,
-          ss_guidance_strength: 7.5,
-          slat_guidance_strength: 3,
+          // Max-quality defaults — overridable from the client.
+          ss_sampling_steps: clamp(body.ssSamplingSteps ?? 50, 1, 50),
+          slat_sampling_steps: clamp(body.slatSamplingSteps ?? 50, 1, 50),
+          ss_guidance_strength: clamp(body.ssGuidanceStrength ?? 9.5, 0, 15),
+          slat_guidance_strength: clamp(body.slatGuidanceStrength ?? 5, 0, 15),
           seed: body.seed ?? 0,
         },
       };
