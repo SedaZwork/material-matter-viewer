@@ -317,7 +317,9 @@ const RingGenerator: React.FC = () => {
       merged.applyMatrix4(new THREE.Matrix4().makeScale(factor, factor, factor));
       merged.computeBoundingBox();
 
-      sessionStorage.setItem('transferGeometryJSON', JSON.stringify(merged.toJSON()));
+      // Geometry can be megabytes — keep it in memory instead of sessionStorage to avoid quota errors.
+      (window as any).__transferGeometry = merged.toJSON();
+      sessionStorage.removeItem('transferGeometryJSON');
       sessionStorage.removeItem('vesselSTL');
       // Hand off generation context so checkout can record it on the print job.
       sessionStorage.setItem(
