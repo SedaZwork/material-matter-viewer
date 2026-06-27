@@ -392,6 +392,7 @@ const RingGenerator: React.FC = () => {
                 Just describe the ring itself — shape, style, finish. The recipe automatically
                 enforces a single closed printable body, isolated on white, ready for image-to-3D.
               </p>
+            </div>
 
             <div className="space-y-2">
               <Label className="text-xs text-black/70">Reference image (optional)</Label>
