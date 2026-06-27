@@ -116,6 +116,7 @@ const RingGenerator: React.FC = () => {
         body: {
           action: 'create',
           prompt,
+          recipe: 'ring',
           imageUrls: referenceImageUrl.trim() ? [referenceImageUrl.trim()] : undefined,
           imageSize: '1:1',
           outputFormat: 'png',
