@@ -11,7 +11,28 @@ interface CreateBody {
   imageUrls?: string[]; // for nano-banana-edit
   outputFormat?: 'png' | 'jpeg';
   imageSize?: '1:1' | '3:4' | '4:3' | '16:9' | '9:16';
+  recipe?: 'ring' | string;
 }
+
+// Ring recipe system prompt — enforces a single, closed, 3D-printable ring body
+// suitable for image-to-3D reconstruction (Trellis) downstream.
+const RING_SYSTEM_PROMPT = [
+  'Generate a professional product concept image of a SINGLE finger ring.',
+  'Hard requirements (must all be satisfied):',
+  '- Exactly ONE ring as a single connected solid body, closed watertight surfaces, manifold geometry, no separate floating parts, no chains, no gemstones detached from the band, no text, no logos.',
+  '- Continuous closed circular band with a clearly visible inner hole (finger opening). No open/cut shanks.',
+  '- Wall thickness everywhere visibly printable (no paper-thin edges, no hair-thin filigree, no overhangs that would not be reconstructable from a single view).',
+  '- Opaque, matte or lightly satin material so geometry is unambiguous — avoid transparent glass, refractive gems, mirror chrome, fur, cloth, liquid, or particles.',
+  '- Centered, isolated on a clean seamless pure white studio background, soft even product lighting, no hands, no models, no props, no shadows on background, no reflections of environment.',
+  '- 3/4 hero product view showing the band silhouette and the inner hole. Whole ring fully inside the frame with a small margin. Square composition.',
+  '- Photoreal product photography style, sharp focus across the entire ring, no depth-of-field blur, no motion blur, no bokeh, no post-processing artifacts.',
+  'The image will be fed directly into an image-to-3D reconstructor, so the silhouette and surfaces must be unambiguous.',
+  'User concept to interpret within the constraints above:',
+].join('\n');
+
+const SYSTEM_PROMPTS: Record<string, string> = {
+  ring: RING_SYSTEM_PROMPT,
+};
 interface StatusBody { action: 'status'; taskId: string; }
 
 Deno.serve(async (req) => {
@@ -35,8 +56,10 @@ Deno.serve(async (req) => {
       // Pick edit model when reference images are present, otherwise text-to-image.
       const hasImages = Array.isArray(body.imageUrls) && body.imageUrls.length > 0;
       const model = hasImages ? 'google/nano-banana-edit' : 'google/nano-banana';
+      const sys = body.recipe ? SYSTEM_PROMPTS[body.recipe] : undefined;
+      const finalPrompt = sys ? `${sys}\n"""${body.prompt.trim()}"""` : body.prompt;
       const input: Record<string, unknown> = {
-        prompt: body.prompt,
+        prompt: finalPrompt,
         output_format: body.outputFormat ?? 'png',
         image_size: body.imageSize ?? '1:1',
       };

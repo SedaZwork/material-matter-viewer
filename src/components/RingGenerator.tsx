@@ -25,7 +25,7 @@ const RingGenerator: React.FC = () => {
   const { user } = useAuth();
 
   const [prompt, setPrompt] = useState(
-    'A minimalist architectural ring, organic flowing structure, parametric geometry, white background, product photography, studio lighting'
+    'minimalist architectural band, organic flowing structure, parametric geometry, brushed silver finish'
   );
   const [referenceImageUrl, setReferenceImageUrl] = useState('');
   const [uploadedRefPath, setUploadedRefPath] = useState<string | null>(null);
@@ -116,6 +116,7 @@ const RingGenerator: React.FC = () => {
         body: {
           action: 'create',
           prompt,
+          recipe: 'ring',
           imageUrls: referenceImageUrl.trim() ? [referenceImageUrl.trim()] : undefined,
           imageSize: '1:1',
           outputFormat: 'png',
@@ -367,8 +368,9 @@ const RingGenerator: React.FC = () => {
         <div className="mb-8">
           <h1 className="text-3xl md:text-4xl font-light text-[#111] tracking-tight">Structural Ring</h1>
           <p className="text-sm text-black/60 mt-2 max-w-xl">
-            Describe your ring (and optionally drop a reference image URL). Nano Banana generates a
-            product concept, Trellis reconstructs the 3D model, and you can quote it for printing.
+            Describe the ring you want. The recipe wraps your prompt with a system prompt that
+            forces a single closed printable body on a clean white background, then reconstructs
+            the 3D model and routes it to quoting & printing.
           </p>
         </div>
 
@@ -385,7 +387,12 @@ const RingGenerator: React.FC = () => {
                 rows={5}
                 className="bg-white/60 border-white/50 text-sm"
                 disabled={busy}
+                placeholder="e.g. chunky signet ring with wave texture, brushed gold"
               />
+              <p className="text-[11px] text-black/50">
+                Just describe the ring itself — shape, style, finish. The recipe automatically
+                enforces a single closed printable body, isolated on white, ready for image-to-3D.
+              </p>
             </div>
 
             <div className="space-y-2">
