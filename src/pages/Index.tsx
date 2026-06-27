@@ -114,13 +114,15 @@ const Index = () => {
   useEffect(() => {
     const fromVessel = location.state?.fromVessel;
     if (fromVessel) {
-      // Prefer JSON geometry (preserves vertex colors for multicolor 3MF preview)
-      const jsonStr = sessionStorage.getItem('transferGeometryJSON');
-      if (jsonStr) {
-        sessionStorage.removeItem('transferGeometryJSON');
+      // Prefer in-memory geometry handoff (large meshes exceed sessionStorage quota)
+      const memJson = (window as any).__transferGeometry;
+      const jsonStr = memJson ? null : sessionStorage.getItem('transferGeometryJSON');
+      if (memJson || jsonStr) {
+        delete (window as any).__transferGeometry;
+        if (jsonStr) sessionStorage.removeItem('transferGeometryJSON');
         try {
           const loader = new THREE.BufferGeometryLoader();
-          const geometry = loader.parse(JSON.parse(jsonStr));
+          const geometry = loader.parse(memJson ?? JSON.parse(jsonStr!));
           handleModelLoaded(geometry);
           setShowLanding(false);
           toast({ title: 'Model Loaded', description: 'Your design is ready — colors preserved for multicolor printing.' });
