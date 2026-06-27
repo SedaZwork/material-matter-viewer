@@ -368,8 +368,9 @@ const RingGenerator: React.FC = () => {
         <div className="mb-8">
           <h1 className="text-3xl md:text-4xl font-light text-[#111] tracking-tight">Structural Ring</h1>
           <p className="text-sm text-black/60 mt-2 max-w-xl">
-            Describe your ring (and optionally drop a reference image URL). Nano Banana generates a
-            product concept, Trellis reconstructs the 3D model, and you can quote it for printing.
+            Describe the ring you want. The recipe wraps your prompt with a system prompt that
+            forces a single closed printable body on a clean white background, then reconstructs
+            the 3D model and routes it to quoting & printing.
           </p>
         </div>
 
