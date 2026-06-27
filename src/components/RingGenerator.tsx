@@ -25,7 +25,7 @@ const RingGenerator: React.FC = () => {
   const { user } = useAuth();
 
   const [prompt, setPrompt] = useState(
-    'A minimalist architectural ring, organic flowing structure, parametric geometry, white background, product photography, studio lighting'
+    'minimalist architectural band, organic flowing structure, parametric geometry, brushed silver finish'
   );
   const [referenceImageUrl, setReferenceImageUrl] = useState('');
   const [uploadedRefPath, setUploadedRefPath] = useState<string | null>(null);
