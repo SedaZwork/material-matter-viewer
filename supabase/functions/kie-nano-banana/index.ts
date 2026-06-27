@@ -56,8 +56,10 @@ Deno.serve(async (req) => {
       // Pick edit model when reference images are present, otherwise text-to-image.
       const hasImages = Array.isArray(body.imageUrls) && body.imageUrls.length > 0;
       const model = hasImages ? 'google/nano-banana-edit' : 'google/nano-banana';
+      const sys = body.recipe ? SYSTEM_PROMPTS[body.recipe] : undefined;
+      const finalPrompt = sys ? `${sys}\n"""${body.prompt.trim()}"""` : body.prompt;
       const input: Record<string, unknown> = {
-        prompt: body.prompt,
+        prompt: finalPrompt,
         output_format: body.outputFormat ?? 'png',
         image_size: body.imageSize ?? '1:1',
       };
