@@ -386,8 +386,12 @@ const RingGenerator: React.FC = () => {
                 rows={5}
                 className="bg-white/60 border-white/50 text-sm"
                 disabled={busy}
+                placeholder="e.g. chunky signet ring with wave texture, brushed gold"
               />
-            </div>
+              <p className="text-[11px] text-black/50">
+                Just describe the ring itself — shape, style, finish. The recipe automatically
+                enforces a single closed printable body, isolated on white, ready for image-to-3D.
+              </p>
 
             <div className="space-y-2">
               <Label className="text-xs text-black/70">Reference image (optional)</Label>
