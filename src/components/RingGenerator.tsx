@@ -573,7 +573,7 @@ const RingGenerator: React.FC = () => {
                     </div>
                   </CollapsibleContent>
                 </Collapsible>
-              </>1
+              </>
             )}
 
             {stage === 'model-ready' && (
