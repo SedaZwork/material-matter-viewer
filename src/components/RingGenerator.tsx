@@ -352,6 +352,7 @@ const RingGenerator: React.FC = () => {
           generationPrompt: prompt,
           generationMetadata: {
             providers: { image: 'kie/nano-banana', mesh: 'piapi/trellis' },
+            trellisSettings: trellis,
             referenceImagePath: uploadedRefPath,
             referenceImageUrl: referenceImageUrl || null,
             createdAt: new Date().toISOString(),
