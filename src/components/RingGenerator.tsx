@@ -10,8 +10,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Sparkles, Box, ArrowRight, Loader2, Upload } from 'lucide-react';
+import { ArrowLeft, Sparkles, Box, ArrowRight, Loader2, Upload, SlidersHorizontal, RotateCcw } from 'lucide-react';
+import { Slider } from '@/components/ui/slider';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useAuth } from '@/hooks/useAuth';
+
+const TRELLIS_DEFAULTS = {
+  ssSamplingSteps: 50,
+  slatSamplingSteps: 50,
+  ssGuidanceStrength: 9.5,
+  slatGuidanceStrength: 5,
+  seed: 0,
+};
 
 type Stage = 'idle' | 'generating-image' | 'image-ready' | 'generating-3d' | 'model-ready';
 
