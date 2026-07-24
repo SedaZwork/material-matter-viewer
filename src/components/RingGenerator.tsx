@@ -176,7 +176,15 @@ const RingGenerator: React.FC = () => {
 
     try {
       const { data: createRes, error: createErr } = await supabase.functions.invoke('piapi-trellis', {
-        body: { action: 'create', imageUrl: conceptImageUrl },
+        body: {
+          action: 'create',
+          imageUrl: conceptImageUrl,
+          ssSamplingSteps: trellis.ssSamplingSteps,
+          slatSamplingSteps: trellis.slatSamplingSteps,
+          ssGuidanceStrength: trellis.ssGuidanceStrength,
+          slatGuidanceStrength: trellis.slatGuidanceStrength,
+          seed: trellis.seed,
+        },
       });
       if (createErr || !createRes?.taskId) throw new Error(createErr?.message || 'Failed to create 3D task');
 
