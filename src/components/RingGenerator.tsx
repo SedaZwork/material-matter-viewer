@@ -10,8 +10,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Sparkles, Box, ArrowRight, Loader2, Upload } from 'lucide-react';
+import { ArrowLeft, Sparkles, Box, ArrowRight, Loader2, Upload, SlidersHorizontal, RotateCcw } from 'lucide-react';
+import { Slider } from '@/components/ui/slider';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useAuth } from '@/hooks/useAuth';
+
+const TRELLIS_DEFAULTS = {
+  ssSamplingSteps: 50,
+  slatSamplingSteps: 50,
+  ssGuidanceStrength: 9.5,
+  slatGuidanceStrength: 5,
+  seed: 0,
+};
 
 type Stage = 'idle' | 'generating-image' | 'image-ready' | 'generating-3d' | 'model-ready';
 
@@ -37,6 +47,8 @@ const RingGenerator: React.FC = () => {
   const [modelStoragePath, setModelStoragePath] = useState<string | null>(null);
   const [stage, setStage] = useState<Stage>('idle');
   const [statusMsg, setStatusMsg] = useState('');
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [trellis, setTrellis] = useState({ ...TRELLIS_DEFAULTS });
 
   // 3D preview of the generated GLB
   const previewRef = useRef<HTMLDivElement>(null);
@@ -164,7 +176,15 @@ const RingGenerator: React.FC = () => {
 
     try {
       const { data: createRes, error: createErr } = await supabase.functions.invoke('piapi-trellis', {
-        body: { action: 'create', imageUrl: conceptImageUrl },
+        body: {
+          action: 'create',
+          imageUrl: conceptImageUrl,
+          ssSamplingSteps: trellis.ssSamplingSteps,
+          slatSamplingSteps: trellis.slatSamplingSteps,
+          ssGuidanceStrength: trellis.ssGuidanceStrength,
+          slatGuidanceStrength: trellis.slatGuidanceStrength,
+          seed: trellis.seed,
+        },
       });
       if (createErr || !createRes?.taskId) throw new Error(createErr?.message || 'Failed to create 3D task');
 
@@ -332,6 +352,7 @@ const RingGenerator: React.FC = () => {
           generationPrompt: prompt,
           generationMetadata: {
             providers: { image: 'kie/nano-banana', mesh: 'piapi/trellis' },
+            trellisSettings: trellis,
             referenceImagePath: uploadedRefPath,
             referenceImageUrl: referenceImageUrl || null,
             createdAt: new Date().toISOString(),
@@ -489,6 +510,70 @@ const RingGenerator: React.FC = () => {
                     <><Box className="w-4 h-4 mr-2" /> Generate 3D model (Trellis)</>
                   )}
                 </Button>
+
+                <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+                  <CollapsibleTrigger asChild>
+                    <button
+                      type="button"
+                      className="w-full flex items-center justify-between text-[11px] uppercase tracking-[0.2em] text-black/55 hover:text-black py-1"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <SlidersHorizontal className="w-3.5 h-3.5" /> Advanced Trellis settings
+                      </span>
+                      <span>{advancedOpen ? '−' : '+'}</span>
+                    </button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-4 pt-3">
+                    {([
+                      { key: 'ssSamplingSteps', label: 'Structure sampling steps', min: 1, max: 50, step: 1 },
+                      { key: 'slatSamplingSteps', label: 'Detail sampling steps', min: 1, max: 50, step: 1 },
+                      { key: 'ssGuidanceStrength', label: 'Structure guidance', min: 0, max: 15, step: 0.1 },
+                      { key: 'slatGuidanceStrength', label: 'Detail guidance', min: 0, max: 15, step: 0.1 },
+                    ] as const).map((f) => (
+                      <div key={f.key} className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs text-black/70">{f.label}</Label>
+                          <span className="text-xs tabular-nums text-black/55">{trellis[f.key]}</span>
+                        </div>
+                        <Slider
+                          value={[trellis[f.key]]}
+                          min={f.min}
+                          max={f.max}
+                          step={f.step}
+                          disabled={busy}
+                          onValueChange={([v]) => setTrellis((t) => ({ ...t, [f.key]: v }))}
+                        />
+                      </div>
+                    ))}
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-black/70">Seed (0 = random)</Label>
+                      <Input
+                        type="number"
+                        value={trellis.seed}
+                        disabled={busy}
+                        onChange={(e) =>
+                          setTrellis((t) => ({ ...t, seed: Number(e.target.value) || 0 }))
+                        }
+                        className="bg-white/60 border-white/50 text-sm"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <p className="text-[11px] text-black/50">
+                        Higher steps &amp; guidance = more detail, slower runs.
+                      </p>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => setTrellis({ ...TRELLIS_DEFAULTS })}
+                        className="text-[11px] text-black/55 hover:text-black flex items-center gap-1"
+                      >
+                        <RotateCcw className="w-3 h-3" /> Reset
+                      </button>
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
               </>
             )}
 
