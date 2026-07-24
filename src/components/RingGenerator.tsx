@@ -509,7 +509,71 @@ const RingGenerator: React.FC = () => {
                     <><Box className="w-4 h-4 mr-2" /> Generate 3D model (Trellis)</>
                   )}
                 </Button>
-              </>
+
+                <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+                  <CollapsibleTrigger asChild>
+                    <button
+                      type="button"
+                      className="w-full flex items-center justify-between text-[11px] uppercase tracking-[0.2em] text-black/55 hover:text-black py-1"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <SlidersHorizontal className="w-3.5 h-3.5" /> Advanced Trellis settings
+                      </span>
+                      <span>{advancedOpen ? '−' : '+'}</span>
+                    </button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-4 pt-3">
+                    {([
+                      { key: 'ssSamplingSteps', label: 'Structure sampling steps', min: 1, max: 50, step: 1 },
+                      { key: 'slatSamplingSteps', label: 'Detail sampling steps', min: 1, max: 50, step: 1 },
+                      { key: 'ssGuidanceStrength', label: 'Structure guidance', min: 0, max: 15, step: 0.1 },
+                      { key: 'slatGuidanceStrength', label: 'Detail guidance', min: 0, max: 15, step: 0.1 },
+                    ] as const).map((f) => (
+                      <div key={f.key} className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs text-black/70">{f.label}</Label>
+                          <span className="text-xs tabular-nums text-black/55">{trellis[f.key]}</span>
+                        </div>
+                        <Slider
+                          value={[trellis[f.key]]}
+                          min={f.min}
+                          max={f.max}
+                          step={f.step}
+                          disabled={busy}
+                          onValueChange={([v]) => setTrellis((t) => ({ ...t, [f.key]: v }))}
+                        />
+                      </div>
+                    ))}
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-black/70">Seed (0 = random)</Label>
+                      <Input
+                        type="number"
+                        value={trellis.seed}
+                        disabled={busy}
+                        onChange={(e) =>
+                          setTrellis((t) => ({ ...t, seed: Number(e.target.value) || 0 }))
+                        }
+                        className="bg-white/60 border-white/50 text-sm"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <p className="text-[11px] text-black/50">
+                        Higher steps &amp; guidance = more detail, slower runs.
+                      </p>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => setTrellis({ ...TRELLIS_DEFAULTS })}
+                        className="text-[11px] text-black/55 hover:text-black flex items-center gap-1"
+                      >
+                        <RotateCcw className="w-3 h-3" /> Reset
+                      </button>
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              </>1
             )}
 
             {stage === 'model-ready' && (
