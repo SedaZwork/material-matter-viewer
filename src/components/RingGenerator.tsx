@@ -47,6 +47,8 @@ const RingGenerator: React.FC = () => {
   const [modelStoragePath, setModelStoragePath] = useState<string | null>(null);
   const [stage, setStage] = useState<Stage>('idle');
   const [statusMsg, setStatusMsg] = useState('');
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [trellis, setTrellis] = useState({ ...TRELLIS_DEFAULTS });
 
   // 3D preview of the generated GLB
   const previewRef = useRef<HTMLDivElement>(null);
