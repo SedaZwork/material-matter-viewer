@@ -653,13 +653,37 @@ const RingGenerator: React.FC = () => {
             )}
 
             {stage === 'model-ready' && (
-              <Button
-                onClick={continueToCustomizer}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
-              >
-                Continue to 3D Print & Material Selection <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
+              <>
+                <div className="rounded-2xl border border-white/50 bg-white/40 p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <Label className="text-xs text-black/70">Ring inner diameter (mm)</Label>
+                    <Input
+                      type="number" step="0.1" min={12} max={25}
+                      value={ringDiameterMm}
+                      onChange={(e) => {
+                        const n = Number(e.target.value);
+                        if (Number.isFinite(n)) setRingDiameterMm(Math.min(25, Math.max(12, n)));
+                        setRingSizeFromProfile(false);
+                      }}
+                      className="h-8 w-24 text-right"
+                    />
+                  </div>
+                  <p className="text-[11px] text-black/50">
+                    ≈ US size {ringDiameterMmToSizeUs(ringDiameterMm)} ·{' '}
+                    {ringSizeFromProfile ? 'from your saved measurements' : 'default 18 mm — set yours in My Account'}.
+                    The mesh is scaled to this fit before quoting.
+                  </p>
+                </div>
+
+                <Button
+                  onClick={continueToCustomizer}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  Continue to 3D Print & Material Selection <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </>
             )}
+
 
             {statusMsg && (
               <div className="text-xs text-black/60 flex items-center gap-2">
