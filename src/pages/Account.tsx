@@ -43,15 +43,112 @@ const EMPTY: Measurements = {
   wrist_cm: '', head_cm: '', notes: '',
 };
 
-const numOrNull = (v: string) => (v === '' || v === null || isNaN(Number(v)) ? null : Number(v));
+type FieldKind = 'length' | 'body' | 'weight' | 'plain';
+
+const FIELD_KIND: Record<Exclude<keyof Measurements, 'notes'>, FieldKind> = {
+  ring_diameter_mm: 'length',
+  ring_size_us: 'plain',
+  foot_length_mm: 'length',
+  foot_width_mm: 'length',
+  shoe_size_eu: 'plain',
+  height_cm: 'body',
+  weight_kg: 'weight',
+  chest_cm: 'body',
+  waist_cm: 'body',
+  hip_cm: 'body',
+  wrist_cm: 'body',
+  head_cm: 'body',
+};
 
 const Account: React.FC = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [m, setM] = useState<Measurements>(EMPTY);
+  const [m, setM] = useState<Measurements>(EMPTY); // values held in the currently selected display units
+  const [lengthUnit, setLengthUnit] = useState<LengthUnit>('mm');
+  const [bodyUnit, setBodyUnit] = useState<BodyUnit>('cm');
+  const [weightUnit, setWeightUnit] = useState<WeightUnit>('kg');
   const [saving, setSaving] = useState(false);
   const [jobs, setJobs] = useState<any[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(false);
+
+  // ── unit helpers ───────────────────────────────────────────────
+  const toMetric = (key: keyof Measurements, display: string): number | null | typeof NaN => {
+    const n = parseNumber(display);
+    if (n === null || Number.isNaN(n)) return n as any;
+    switch (FIELD_KIND[key as Exclude<keyof Measurements, 'notes'>]) {
+      case 'length': return toMm(n, lengthUnit);
+      case 'body': return toCm(n, bodyUnit);
+      case 'weight': return toKg(n, weightUnit);
+      default: return n;
+    }
+  };
+
+  const toDisplay = (key: keyof Measurements, metric: number): number => {
+    switch (FIELD_KIND[key as Exclude<keyof Measurements, 'notes'>]) {
+      case 'length': return round(fromMm(metric, lengthUnit), lengthUnit === 'mm' ? 2 : 3);
+      case 'body': return round(fromCm(metric, bodyUnit), 2);
+      case 'weight': return round(fromKg(metric, weightUnit), 2);
+      default: return round(metric, 2);
+    }
+  };
+
+  const errors = React.useMemo(() => {
+    const e: Partial<Record<keyof Measurements, string>> = {};
+    (Object.keys(FIELD_KIND) as (keyof Measurements)[]).forEach((k) => {
+      const v = toMetric(k, m[k]);
+      if (typeof v === 'number' && Number.isNaN(v)) {
+        e[k] = 'Enter a valid number';
+        return;
+      }
+      const msg = validateMetric(k as string, v as number | null);
+      if (msg) e[k] = msg;
+    });
+    return e;
+  }, [m, lengthUnit, bodyUnit, weightUnit]);
+
+  const hasErrors = Object.keys(errors).length > 0;
+
+  // Convert already-entered display values when a unit toggle changes.
+  const switchUnit = (kind: FieldKind, next: string) => {
+    setM((s) => {
+      const out: any = { ...s };
+      (Object.keys(FIELD_KIND) as (keyof Measurements)[]).forEach((k) => {
+        if (FIELD_KIND[k as Exclude<keyof Measurements, 'notes'>] !== kind) return;
+        const n = parseNumber(s[k]);
+        if (n === null || Number.isNaN(n)) return;
+        let metric = n;
+        if (kind === 'length') metric = toMm(n, lengthUnit);
+        if (kind === 'body') metric = toCm(n, bodyUnit);
+        if (kind === 'weight') metric = toKg(n, weightUnit);
+        let converted = metric;
+        if (kind === 'length') converted = fromMm(metric, next as LengthUnit);
+        if (kind === 'body') converted = fromCm(metric, next as BodyUnit);
+        if (kind === 'weight') converted = fromKg(metric, next as WeightUnit);
+        out[k] = String(round(converted, kind === 'length' && next === 'in' ? 3 : 2));
+      });
+      return out;
+    });
+    if (kind === 'length') setLengthUnit(next as LengthUnit);
+    if (kind === 'body') setBodyUnit(next as BodyUnit);
+    if (kind === 'weight') setWeightUnit(next as WeightUnit);
+  };
+
+  const unitToggle = (kind: FieldKind, options: string[], current: string) => (
+    <div className="inline-flex rounded-md border border-border overflow-hidden">
+      {options.map((o) => (
+        <button
+          key={o}
+          type="button"
+          onClick={() => current !== o && switchUnit(kind, o)}
+          className={`px-2 py-0.5 text-[11px] transition-colors ${
+            current === o ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:bg-secondary'
+          }`}
+        >
+          {o}
+        </button>
+      ))}
+    </div>
+  );
 
   useEffect(() => {
     if (!loading && !user) navigate('/auth?returnTo=/account');
@@ -70,7 +167,8 @@ const Account: React.FC = () => {
         const next: any = { ...EMPTY };
         Object.keys(EMPTY).forEach((k) => {
           const v = (data as any)[k];
-          next[k] = v === null || v === undefined ? '' : String(v);
+          if (v === null || v === undefined) { next[k] = ''; return; }
+          next[k] = k === 'notes' ? String(v) : String(toDisplay(k as keyof Measurements, Number(v)));
         });
         setM(next);
       }
@@ -94,10 +192,16 @@ const Account: React.FC = () => {
 
   const save = async () => {
     if (!user) return;
+    if (hasErrors) {
+      toast.error('Please fix the highlighted measurements first');
+      return;
+    }
     setSaving(true);
     const payload: any = { user_id: user.id, scan_source: 'manual' };
     (Object.keys(EMPTY) as (keyof Measurements)[]).forEach((k) => {
-      payload[k] = k === 'notes' ? (m[k] || null) : numOrNull(m[k]);
+      if (k === 'notes') { payload[k] = m[k]?.trim() ? m[k].trim().slice(0, 1000) : null; return; }
+      const v = toMetric(k, m[k]);
+      payload[k] = typeof v === 'number' && !Number.isNaN(v) ? round(v, 2) : null;
     });
     const { error } = await supabase
       .from('user_measurements')
@@ -111,17 +215,45 @@ const Account: React.FC = () => {
     }
   };
 
-  const field = (key: keyof Measurements, label: string, unit?: string, step = '0.1') => (
-    <div className="space-y-1.5">
-      <Label className="text-xs text-muted-foreground">{label}{unit && <span className="ml-1 opacity-60">({unit})</span>}</Label>
-      <Input
-        type="number" inputMode="decimal" step={step}
-        value={m[key]}
-        onChange={(e) => setM((s) => ({ ...s, [key]: e.target.value }))}
-        className="h-9"
-      />
-    </div>
-  );
+  // Keep US ring size and inner diameter in sync.
+  const handleChange = (key: keyof Measurements, value: string) => {
+    setM((s) => {
+      const next = { ...s, [key]: value };
+      const n = parseNumber(value);
+      const valid = n !== null && !Number.isNaN(n);
+      if (key === 'ring_diameter_mm') {
+        next.ring_size_us = valid ? String(ringDiameterMmToSizeUs(toMm(n as number, lengthUnit))) : '';
+      } else if (key === 'ring_size_us') {
+        next.ring_diameter_mm = valid
+          ? String(round(fromMm(ringSizeUsToDiameterMm(n as number), lengthUnit), lengthUnit === 'mm' ? 2 : 3))
+          : '';
+      }
+      return next;
+    });
+  };
+
+  const field = (key: keyof Measurements, label: string, unit?: string, step = '0.1') => {
+    const kind = FIELD_KIND[key as Exclude<keyof Measurements, 'notes'>];
+    const shownUnit =
+      kind === 'length' ? lengthUnit : kind === 'body' ? bodyUnit : kind === 'weight' ? weightUnit : unit;
+    const err = errors[key];
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs text-muted-foreground">
+          {label}{shownUnit && <span className="ml-1 opacity-60">({shownUnit})</span>}
+        </Label>
+        <Input
+          type="number" inputMode="decimal" step={step}
+          value={m[key]}
+          onChange={(e) => handleChange(key, e.target.value)}
+          aria-invalid={!!err}
+          className={`h-9 ${err ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+        />
+        {err && <p className="text-[10px] text-destructive leading-tight">{err}</p>}
+      </div>
+    );
+  };
+
 
   const generated = jobs.filter((j) => j.source && j.source !== 'upload');
   const purchased = jobs.filter((j) => j.status && j.status !== 'pending');
