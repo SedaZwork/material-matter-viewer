@@ -422,6 +422,12 @@ const RingGenerator: React.FC = () => {
           generationMetadata: {
             providers: { image: 'kie/nano-banana', mesh: 'piapi/trellis' },
             trellisSettings: trellis,
+            ringFit: {
+              innerDiameterMm: ringDiameterMm,
+              ringSizeUs: ringDiameterMmToSizeUs(ringDiameterMm),
+              scaleFactor: round(factor, 4),
+              source: ringSizeFromProfile ? 'user_measurements' : 'default',
+            },
             referenceImagePath: uploadedRefPath,
             referenceImageUrl: referenceImageUrl || null,
             createdAt: new Date().toISOString(),
