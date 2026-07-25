@@ -328,14 +328,11 @@ const RingGenerator: React.FC = () => {
         merged.computeVertexNormals();
       }
 
-      // Normalize size to ~50mm bounding-box max (ring-sized) so cost calc is sane.
-      merged.computeBoundingBox();
-      const size = new THREE.Vector3();
-      merged.boundingBox!.getSize(size);
-      const target = 50; // mm
-      const factor = target / Math.max(size.x, size.y, size.z);
+      // Final scaling: fit the ring's inner hole to the user's ring size.
+      const factor = computeRingFitScale(merged, ringDiameterMm);
       merged.applyMatrix4(new THREE.Matrix4().makeScale(factor, factor, factor));
       merged.computeBoundingBox();
+
 
       // Geometry can be megabytes — keep it in memory instead of sessionStorage to avoid quota errors.
       (window as any).__transferGeometry = merged.toJSON();
