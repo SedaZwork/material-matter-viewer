@@ -14,6 +14,12 @@ import { ArrowLeft, Sparkles, Box, ArrowRight, Loader2, Upload, SlidersHorizonta
 import { Slider } from '@/components/ui/slider';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useAuth } from '@/hooks/useAuth';
+import {
+  DEFAULT_RING_INNER_DIAMETER_MM,
+  ringSizeUsToDiameterMm,
+  ringDiameterMmToSizeUs,
+  round,
+} from '@/utils/measurements';
 
 const TRELLIS_DEFAULTS = {
   ssSamplingSteps: 50,
