@@ -14,6 +14,12 @@ import { ArrowLeft, Sparkles, Box, ArrowRight, Loader2, Upload, SlidersHorizonta
 import { Slider } from '@/components/ui/slider';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useAuth } from '@/hooks/useAuth';
+import {
+  DEFAULT_RING_INNER_DIAMETER_MM,
+  ringSizeUsToDiameterMm,
+  ringDiameterMmToSizeUs,
+  round,
+} from '@/utils/measurements';
 
 const TRELLIS_DEFAULTS = {
   ssSamplingSteps: 50,
@@ -28,6 +34,47 @@ type Stage = 'idle' | 'generating-image' | 'image-ready' | 'generating-3d' | 'mo
 const POLL_INTERVAL_MS = 3000;
 const MAX_POLLS_IMAGE = 60;     // ~3 min
 const MAX_POLLS_MODEL = 120;    // ~6 min
+
+/**
+ * Estimate the ring's inner-hole diameter and return the scale factor needed
+ * so the hole matches the requested inner diameter (mm).
+ * The ring axis is assumed to be the shortest bounding-box dimension.
+ */
+function computeRingFitScale(geom: THREE.BufferGeometry, targetInnerDiameterMm: number): number {
+  geom.computeBoundingBox();
+  const bb = geom.boundingBox!;
+  const size = new THREE.Vector3();
+  bb.getSize(size);
+  const center = new THREE.Vector3();
+  bb.getCenter(center);
+
+  const dims = [size.x, size.y, size.z];
+  const axis = dims.indexOf(Math.min(...dims)); // ring axis (band width direction)
+  const [a, b] = [0, 1, 2].filter((i) => i !== axis);
+  const c = [center.x, center.y, center.z];
+
+  const pos = geom.getAttribute('position') as THREE.BufferAttribute;
+  const slab = dims[axis] * 0.15; // thin slab around the mid-plane
+  let minRadius = Infinity;
+  const v = [0, 0, 0];
+  for (let i = 0; i < pos.count; i++) {
+    v[0] = pos.getX(i); v[1] = pos.getY(i); v[2] = pos.getZ(i);
+    if (Math.abs(v[axis] - c[axis]) > slab) continue;
+    const dr = Math.hypot(v[a] - c[a], v[b] - c[b]);
+    if (dr < minRadius) minRadius = dr;
+  }
+
+  const outerDiameter = Math.max(dims[a], dims[b]);
+  // Fallback when the hole can't be measured (solid/degenerate mesh):
+  // assume a typical inner/outer ratio of 0.8.
+  const innerDiameter =
+    Number.isFinite(minRadius) && minRadius > outerDiameter * 0.15
+      ? minRadius * 2
+      : outerDiameter * 0.8;
+
+  const factor = targetInnerDiameterMm / innerDiameter;
+  return Number.isFinite(factor) && factor > 0 ? factor : 1;
+}
 
 const RingGenerator: React.FC = () => {
   const navigate = useNavigate();
@@ -49,6 +96,31 @@ const RingGenerator: React.FC = () => {
   const [statusMsg, setStatusMsg] = useState('');
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [trellis, setTrellis] = useState({ ...TRELLIS_DEFAULTS });
+  const [ringDiameterMm, setRingDiameterMm] = useState<number>(DEFAULT_RING_INNER_DIAMETER_MM);
+  const [ringSizeFromProfile, setRingSizeFromProfile] = useState(false);
+
+  // Load the signed-in user's saved ring size (falls back to the 18 mm default).
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from('user_measurements')
+      .select('ring_diameter_mm, ring_size_us')
+      .eq('user_id', user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        const d = data?.ring_diameter_mm
+          ? Number(data.ring_diameter_mm)
+          : data?.ring_size_us
+            ? ringSizeUsToDiameterMm(Number(data.ring_size_us))
+            : null;
+        if (d && d >= 12 && d <= 25) {
+          setRingDiameterMm(round(d, 2));
+          setRingSizeFromProfile(true);
+        }
+      });
+  }, [user]);
+
+
 
   // 3D preview of the generated GLB
   const previewRef = useRef<HTMLDivElement>(null);
@@ -328,14 +400,11 @@ const RingGenerator: React.FC = () => {
         merged.computeVertexNormals();
       }
 
-      // Normalize size to ~50mm bounding-box max (ring-sized) so cost calc is sane.
-      merged.computeBoundingBox();
-      const size = new THREE.Vector3();
-      merged.boundingBox!.getSize(size);
-      const target = 50; // mm
-      const factor = target / Math.max(size.x, size.y, size.z);
+      // Final scaling: fit the ring's inner hole to the user's ring size.
+      const factor = computeRingFitScale(merged, ringDiameterMm);
       merged.applyMatrix4(new THREE.Matrix4().makeScale(factor, factor, factor));
       merged.computeBoundingBox();
+
 
       // Geometry can be megabytes — keep it in memory instead of sessionStorage to avoid quota errors.
       (window as any).__transferGeometry = merged.toJSON();
@@ -353,6 +422,12 @@ const RingGenerator: React.FC = () => {
           generationMetadata: {
             providers: { image: 'kie/nano-banana', mesh: 'piapi/trellis' },
             trellisSettings: trellis,
+            ringFit: {
+              innerDiameterMm: ringDiameterMm,
+              ringSizeUs: ringDiameterMmToSizeUs(ringDiameterMm),
+              scaleFactor: round(factor, 4),
+              source: ringSizeFromProfile ? 'user_measurements' : 'default',
+            },
             referenceImagePath: uploadedRefPath,
             referenceImageUrl: referenceImageUrl || null,
             createdAt: new Date().toISOString(),
@@ -578,13 +653,37 @@ const RingGenerator: React.FC = () => {
             )}
 
             {stage === 'model-ready' && (
-              <Button
-                onClick={continueToCustomizer}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
-              >
-                Continue to 3D Print & Material Selection <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
+              <>
+                <div className="rounded-2xl border border-white/50 bg-white/40 p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <Label className="text-xs text-black/70">Ring inner diameter (mm)</Label>
+                    <Input
+                      type="number" step="0.1" min={12} max={25}
+                      value={ringDiameterMm}
+                      onChange={(e) => {
+                        const n = Number(e.target.value);
+                        if (Number.isFinite(n)) setRingDiameterMm(Math.min(25, Math.max(12, n)));
+                        setRingSizeFromProfile(false);
+                      }}
+                      className="h-8 w-24 text-right"
+                    />
+                  </div>
+                  <p className="text-[11px] text-black/50">
+                    ≈ US size {ringDiameterMmToSizeUs(ringDiameterMm)} ·{' '}
+                    {ringSizeFromProfile ? 'from your saved measurements' : 'default 18 mm — set yours in My Account'}.
+                    The mesh is scaled to this fit before quoting.
+                  </p>
+                </div>
+
+                <Button
+                  onClick={continueToCustomizer}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  Continue to 3D Print & Material Selection <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </>
             )}
+
 
             {statusMsg && (
               <div className="text-xs text-black/60 flex items-center gap-2">
