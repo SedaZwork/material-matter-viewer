@@ -11,6 +11,12 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { ArrowLeft, Ruler, Package, FileBox, ScanLine, Save } from 'lucide-react';
+import {
+  LengthUnit, BodyUnit, WeightUnit,
+  toMm, fromMm, toCm, fromCm, toKg, fromKg,
+  round, validateMetric, parseNumber,
+  ringSizeUsToDiameterMm, ringDiameterMmToSizeUs,
+} from '@/utils/measurements';
 import { logger } from '@/utils/logger';
 
 type Measurements = {
