@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import Account from "./pages/Account";
 import NotFound from "./pages/NotFound";
 import VesselGenerator from "./components/VesselGenerator";
 import TerrainGenerator from "./components/TerrainGenerator";
@@ -22,6 +23,7 @@ const App = () => {
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/account" element={<Account />} />
             <Route path="/vessel-generator" element={<VesselGenerator />} />
             <Route path="/terrain-generator" element={<TerrainGenerator />} />
             <Route path="/ring-generator" element={<RingGenerator />} />

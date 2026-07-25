@@ -22,7 +22,7 @@ import {
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Printer, Upload, LogOut, LogIn, User, ShoppingCart } from 'lucide-react';
+import { Printer, Upload, LogOut, LogIn, User, ShoppingCart, UserCircle } from 'lucide-react';
 import * as THREE from 'three';
 
 interface Dimensions { width: number; height: number; depth: number; }
@@ -185,6 +185,7 @@ const Index = () => {
                   <DropdownMenuLabel className="font-normal text-xs text-muted-foreground">Account</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem disabled><User className="mr-2 h-3.5 w-3.5" /><span className="text-xs">{user.email}</span></DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/account')}><UserCircle className="mr-2 h-3.5 w-3.5" /><span>My Account</span></DropdownMenuItem>
                   <DropdownMenuItem onClick={handleSignOut}><LogOut className="mr-2 h-3.5 w-3.5" /><span>Sign Out</span></DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

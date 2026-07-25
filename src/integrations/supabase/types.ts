@@ -241,6 +241,69 @@ export type Database = {
         }
         Relationships: []
       }
+      user_measurements: {
+        Row: {
+          chest_cm: number | null
+          created_at: string
+          foot_length_mm: number | null
+          foot_width_mm: number | null
+          head_cm: number | null
+          height_cm: number | null
+          hip_cm: number | null
+          id: string
+          notes: string | null
+          ring_diameter_mm: number | null
+          ring_size_us: number | null
+          scan_source: string
+          shoe_size_eu: number | null
+          updated_at: string
+          user_id: string
+          waist_cm: number | null
+          weight_kg: number | null
+          wrist_cm: number | null
+        }
+        Insert: {
+          chest_cm?: number | null
+          created_at?: string
+          foot_length_mm?: number | null
+          foot_width_mm?: number | null
+          head_cm?: number | null
+          height_cm?: number | null
+          hip_cm?: number | null
+          id?: string
+          notes?: string | null
+          ring_diameter_mm?: number | null
+          ring_size_us?: number | null
+          scan_source?: string
+          shoe_size_eu?: number | null
+          updated_at?: string
+          user_id: string
+          waist_cm?: number | null
+          weight_kg?: number | null
+          wrist_cm?: number | null
+        }
+        Update: {
+          chest_cm?: number | null
+          created_at?: string
+          foot_length_mm?: number | null
+          foot_width_mm?: number | null
+          head_cm?: number | null
+          height_cm?: number | null
+          hip_cm?: number | null
+          id?: string
+          notes?: string | null
+          ring_diameter_mm?: number | null
+          ring_size_us?: number | null
+          scan_source?: string
+          shoe_size_eu?: number | null
+          updated_at?: string
+          user_id?: string
+          waist_cm?: number | null
+          weight_kg?: number | null
+          wrist_cm?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
