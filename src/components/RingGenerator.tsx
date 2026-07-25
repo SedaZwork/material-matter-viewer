@@ -29,6 +29,47 @@ const POLL_INTERVAL_MS = 3000;
 const MAX_POLLS_IMAGE = 60;     // ~3 min
 const MAX_POLLS_MODEL = 120;    // ~6 min
 
+/**
+ * Estimate the ring's inner-hole diameter and return the scale factor needed
+ * so the hole matches the requested inner diameter (mm).
+ * The ring axis is assumed to be the shortest bounding-box dimension.
+ */
+function computeRingFitScale(geom: THREE.BufferGeometry, targetInnerDiameterMm: number): number {
+  geom.computeBoundingBox();
+  const bb = geom.boundingBox!;
+  const size = new THREE.Vector3();
+  bb.getSize(size);
+  const center = new THREE.Vector3();
+  bb.getCenter(center);
+
+  const dims = [size.x, size.y, size.z];
+  const axis = dims.indexOf(Math.min(...dims)); // ring axis (band width direction)
+  const [a, b] = [0, 1, 2].filter((i) => i !== axis);
+  const c = [center.x, center.y, center.z];
+
+  const pos = geom.getAttribute('position') as THREE.BufferAttribute;
+  const slab = dims[axis] * 0.15; // thin slab around the mid-plane
+  let minRadius = Infinity;
+  const v = [0, 0, 0];
+  for (let i = 0; i < pos.count; i++) {
+    v[0] = pos.getX(i); v[1] = pos.getY(i); v[2] = pos.getZ(i);
+    if (Math.abs(v[axis] - c[axis]) > slab) continue;
+    const dr = Math.hypot(v[a] - c[a], v[b] - c[b]);
+    if (dr < minRadius) minRadius = dr;
+  }
+
+  const outerDiameter = Math.max(dims[a], dims[b]);
+  // Fallback when the hole can't be measured (solid/degenerate mesh):
+  // assume a typical inner/outer ratio of 0.8.
+  const innerDiameter =
+    Number.isFinite(minRadius) && minRadius > outerDiameter * 0.15
+      ? minRadius * 2
+      : outerDiameter * 0.8;
+
+  const factor = targetInnerDiameterMm / innerDiameter;
+  return Number.isFinite(factor) && factor > 0 ? factor : 1;
+}
+
 const RingGenerator: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
