@@ -299,34 +299,47 @@ const Account: React.FC = () => {
               </div>
 
               <section className="space-y-2">
-                <h3 className="text-[11px] font-medium text-muted-foreground tracking-widest uppercase">Ring</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-[11px] font-medium text-muted-foreground tracking-widest uppercase">Ring</h3>
+                  {unitToggle('length', ['mm', 'in'], lengthUnit)}
+                </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {field('ring_diameter_mm', 'Inner diameter', 'mm')}
+                  {field('ring_diameter_mm', 'Inner diameter')}
                   {field('ring_size_us', 'US size', '')}
                 </div>
               </section>
 
               <section className="space-y-2">
-                <h3 className="text-[11px] font-medium text-muted-foreground tracking-widest uppercase">Foot</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-[11px] font-medium text-muted-foreground tracking-widest uppercase">Foot</h3>
+                  {unitToggle('length', ['mm', 'in'], lengthUnit)}
+                </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {field('foot_length_mm', 'Length', 'mm')}
-                  {field('foot_width_mm', 'Width', 'mm')}
+                  {field('foot_length_mm', 'Length')}
+                  {field('foot_width_mm', 'Width')}
                   {field('shoe_size_eu', 'EU shoe', '')}
                 </div>
               </section>
 
               <section className="space-y-2">
-                <h3 className="text-[11px] font-medium text-muted-foreground tracking-widest uppercase">Body</h3>
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-[11px] font-medium text-muted-foreground tracking-widest uppercase">Body</h3>
+                  <div className="flex items-center gap-2">
+                    {unitToggle('body', ['cm', 'in'], bodyUnit)}
+                    {unitToggle('weight', ['kg', 'lb'], weightUnit)}
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {field('height_cm', 'Height', 'cm')}
-                  {field('weight_kg', 'Weight', 'kg')}
-                  {field('chest_cm', 'Chest', 'cm')}
-                  {field('waist_cm', 'Waist', 'cm')}
-                  {field('hip_cm', 'Hip', 'cm')}
-                  {field('wrist_cm', 'Wrist', 'cm')}
-                  {field('head_cm', 'Head', 'cm')}
+                  {field('height_cm', 'Height')}
+                  {field('weight_kg', 'Weight')}
+                  {field('chest_cm', 'Chest')}
+                  {field('waist_cm', 'Waist')}
+                  {field('hip_cm', 'Hip')}
+                  {field('wrist_cm', 'Wrist')}
+                  {field('head_cm', 'Head')}
                 </div>
               </section>
+
 
               <section className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Notes</Label>
