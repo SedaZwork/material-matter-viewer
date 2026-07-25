@@ -344,18 +344,22 @@ const Account: React.FC = () => {
               <section className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Notes</Label>
                 <Textarea
-                  rows={3} value={m.notes}
+                  rows={3} value={m.notes} maxLength={1000}
                   onChange={(e) => setM((s) => ({ ...s, notes: e.target.value }))}
                   placeholder="Preferences, asymmetries, fit notes…"
                 />
               </section>
 
-              <div className="flex justify-end pt-2">
-                <Button onClick={save} disabled={saving}>
+              <div className="flex items-center justify-end gap-3 pt-2">
+                {hasErrors && (
+                  <p className="text-[11px] text-destructive">Fix highlighted fields to save</p>
+                )}
+                <Button onClick={save} disabled={saving || hasErrors}>
                   <Save className="w-4 h-4 mr-1.5" />
                   {saving ? 'Saving…' : 'Save measurements'}
                 </Button>
               </div>
+
             </Card>
           </TabsContent>
 
