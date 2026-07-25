@@ -23,6 +23,7 @@ const App = () => {
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/account" element={<Account />} />
             <Route path="/vessel-generator" element={<VesselGenerator />} />
             <Route path="/terrain-generator" element={<TerrainGenerator />} />
             <Route path="/ring-generator" element={<RingGenerator />} />
