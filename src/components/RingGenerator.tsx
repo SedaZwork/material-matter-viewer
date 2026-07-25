@@ -90,6 +90,31 @@ const RingGenerator: React.FC = () => {
   const [statusMsg, setStatusMsg] = useState('');
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [trellis, setTrellis] = useState({ ...TRELLIS_DEFAULTS });
+  const [ringDiameterMm, setRingDiameterMm] = useState<number>(DEFAULT_RING_INNER_DIAMETER_MM);
+  const [ringSizeFromProfile, setRingSizeFromProfile] = useState(false);
+
+  // Load the signed-in user's saved ring size (falls back to the 18 mm default).
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from('user_measurements')
+      .select('ring_diameter_mm, ring_size_us')
+      .eq('user_id', user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        const d = data?.ring_diameter_mm
+          ? Number(data.ring_diameter_mm)
+          : data?.ring_size_us
+            ? ringSizeUsToDiameterMm(Number(data.ring_size_us))
+            : null;
+        if (d && d >= 12 && d <= 25) {
+          setRingDiameterMm(round(d, 2));
+          setRingSizeFromProfile(true);
+        }
+      });
+  }, [user]);
+
+
 
   // 3D preview of the generated GLB
   const previewRef = useRef<HTMLDivElement>(null);
