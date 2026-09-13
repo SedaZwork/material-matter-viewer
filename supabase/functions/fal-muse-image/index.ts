@@ -1,10 +1,12 @@
 // fal.ai Muse Image proxy: submit generation task + poll status.
 // Used by the Ring recipe to turn a text prompt (+ optional reference image)
-// into a 3D-printable product concept image via meta/muse-image/edit.
+// into a 3D-printable product concept image.
+//   - meta/muse-image       → text-to-image (no reference)
+//   - meta/muse-image/edit  → image editing (reference images required)
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 
-const FAL_MODEL = 'meta/muse-image/edit';
-const FAL_QUEUE_BASE = `https://queue.fal.run/${FAL_MODEL}`;
+const FAL_MODEL_TXT2IMG = 'meta/muse-image';
+const FAL_MODEL_EDIT = 'meta/muse-image/edit';
 
 interface CreateBody {
   action: 'create';
@@ -34,7 +36,7 @@ const RING_SYSTEM_PROMPT = [
 const SYSTEM_PROMPTS: Record<string, string> = {
   ring: RING_SYSTEM_PROMPT,
 };
-interface StatusBody { action: 'status'; taskId: string; }
+interface StatusBody { action: 'status'; taskId: string; statusUrl?: string; responseUrl?: string; }
 
 // Map aspect ratios to fal's image_size presets (square_hd ≈ 1024x1024).
 const SIZE_MAP: Record<string, string> = {
@@ -77,11 +79,12 @@ Deno.serve(async (req) => {
         output_format: body.outputFormat ?? 'png',
         image_size: SIZE_MAP[body.imageSize ?? '1:1'] ?? 'square_hd',
       };
-      if (Array.isArray(body.imageUrls) && body.imageUrls.length > 0) {
-        input.image_urls = body.imageUrls;
-      }
+      const hasImages = Array.isArray(body.imageUrls) && body.imageUrls.length > 0;
+      if (hasImages) input.image_urls = body.imageUrls;
+      // The edit model requires image_urls; use text-to-image without them.
+      const model = hasImages ? FAL_MODEL_EDIT : FAL_MODEL_TXT2IMG;
 
-      const res = await fetch(FAL_QUEUE_BASE, {
+      const res = await fetch(`https://queue.fal.run/${model}`, {
         method: 'POST',
         headers: authHeaders,
         body: JSON.stringify(input),
@@ -92,7 +95,12 @@ Deno.serve(async (req) => {
           status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      return new Response(JSON.stringify({ taskId: data.request_id }), {
+      // Use the exact polling URLs fal returns (queue routing can vary per endpoint).
+      return new Response(JSON.stringify({
+        taskId: data.request_id,
+        statusUrl: data.status_url ?? null,
+        responseUrl: data.response_url ?? null,
+      }), {
         status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -104,17 +112,26 @@ Deno.serve(async (req) => {
         });
       }
       const id = encodeURIComponent(body.taskId);
-      const statusRes = await fetch(`${FAL_QUEUE_BASE}/requests/${id}/status`, {
-        headers: authHeaders,
-      });
+      // Prefer the exact URLs fal returned at submit time; fall back to the
+      // conventional queue paths. Only allow fal.run hosts (SSRF guard).
+      const isFalUrl = (u: unknown): u is string =>
+        typeof u === 'string' && /^https:\/\/([a-z0-9-]+\.)?fal\.run\//.test(u);
+      const statusUrl = isFalUrl(body.statusUrl)
+        ? body.statusUrl
+        : `${FAL_QUEUE_BASE}/requests/${id}/status`;
+      const responseUrl = isFalUrl(body.responseUrl)
+        ? body.responseUrl
+        : `${FAL_QUEUE_BASE}/requests/${id}`;
+
+      const statusRes = await fetch(statusUrl, { headers: authHeaders });
       const statusData = await statusRes.json().catch(() => ({}));
       const falStatus: string = statusData?.status ?? 'UNKNOWN';
+      console.log('fal status http', statusRes.status, JSON.stringify(statusData).slice(0, 2000));
 
       if (falStatus === 'COMPLETED') {
-        const resultRes = await fetch(`${FAL_QUEUE_BASE}/requests/${id}`, {
-          headers: authHeaders,
-        });
+        const resultRes = await fetch(responseUrl, { headers: authHeaders });
         const result = await resultRes.json().catch(() => ({}));
+        console.log('fal result http', resultRes.status, JSON.stringify(result).slice(0, 2000));
         const imageUrl: string | null =
           result?.images?.[0]?.url ?? result?.image?.url ?? null;
         return new Response(JSON.stringify({
