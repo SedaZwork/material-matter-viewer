@@ -109,12 +109,14 @@ Deno.serve(async (req) => {
       });
       const statusData = await statusRes.json().catch(() => ({}));
       const falStatus: string = statusData?.status ?? 'UNKNOWN';
+      console.log('fal status http', statusRes.status, JSON.stringify(statusData).slice(0, 2000));
 
       if (falStatus === 'COMPLETED') {
         const resultRes = await fetch(`${FAL_QUEUE_BASE}/requests/${id}`, {
           headers: authHeaders,
         });
         const result = await resultRes.json().catch(() => ({}));
+        console.log('fal result http', resultRes.status, JSON.stringify(result).slice(0, 2000));
         const imageUrl: string | null =
           result?.images?.[0]?.url ?? result?.image?.url ?? null;
         return new Response(JSON.stringify({
