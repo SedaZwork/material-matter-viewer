@@ -34,7 +34,7 @@ const RING_SYSTEM_PROMPT = [
 const SYSTEM_PROMPTS: Record<string, string> = {
   ring: RING_SYSTEM_PROMPT,
 };
-interface StatusBody { action: 'status'; taskId: string; }
+interface StatusBody { action: 'status'; taskId: string; statusUrl?: string; responseUrl?: string; }
 
 // Map aspect ratios to fal's image_size presets (square_hd ≈ 1024x1024).
 const SIZE_MAP: Record<string, string> = {
@@ -92,7 +92,12 @@ Deno.serve(async (req) => {
           status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      return new Response(JSON.stringify({ taskId: data.request_id }), {
+      // Use the exact polling URLs fal returns (queue routing can vary per endpoint).
+      return new Response(JSON.stringify({
+        taskId: data.request_id,
+        statusUrl: data.status_url ?? null,
+        responseUrl: data.response_url ?? null,
+      }), {
         status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
