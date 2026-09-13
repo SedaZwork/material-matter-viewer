@@ -184,14 +184,14 @@ const RingGenerator: React.FC = () => {
   };
 
 
-  // ── Step 1: Nano Banana concept generation ────────────────────────────
+  // ── Step 1: Muse Image (fal.ai) concept generation ────────────────────
   const generateConcept = async () => {
     if (!prompt.trim()) {
       toast({ title: 'Add a description', description: 'Describe the ring you want.', variant: 'destructive' });
       return;
     }
     setStage('generating-image');
-    setStatusMsg('Submitting prompt to Nano Banana…');
+    setStatusMsg('Submitting prompt to Muse Image…');
     setConceptImageUrl(null);
     setModelUrl(null);
 
@@ -420,7 +420,7 @@ const RingGenerator: React.FC = () => {
           conceptImageUrl,
           generationPrompt: prompt,
           generationMetadata: {
-            providers: { image: 'kie/nano-banana', mesh: 'piapi/trellis' },
+            providers: { image: 'fal/meta-muse-image', mesh: 'piapi/trellis' },
             trellisSettings: trellis,
             ringFit: {
               innerDiameterMm: ringDiameterMm,
@@ -553,7 +553,7 @@ const RingGenerator: React.FC = () => {
                 disabled={busy || !!uploadedRefPreview}
               />
               <p className="text-[11px] text-black/50">
-                When provided, Nano Banana Edit uses it as the visual reference.
+                When provided, Muse Image Edit uses it as the visual reference.
               </p>
             </div>
 
