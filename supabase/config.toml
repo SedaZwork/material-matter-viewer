@@ -6,7 +6,7 @@ verify_jwt = true
 [functions.thingiverse-proxy]
 verify_jwt = false
 
-[functions.kie-nano-banana]
+[functions.fal-muse-image]
 verify_jwt = false
 
 [functions.piapi-trellis]
