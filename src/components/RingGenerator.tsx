@@ -196,7 +196,7 @@ const RingGenerator: React.FC = () => {
     setModelUrl(null);
 
     try {
-      const { data: createRes, error: createErr } = await supabase.functions.invoke('kie-nano-banana', {
+      const { data: createRes, error: createErr } = await supabase.functions.invoke('fal-muse-image', {
         body: {
           action: 'create',
           prompt,
@@ -213,7 +213,7 @@ const RingGenerator: React.FC = () => {
 
       for (let i = 0; i < MAX_POLLS_IMAGE; i++) {
         await sleep(POLL_INTERVAL_MS);
-        const { data: statusRes } = await supabase.functions.invoke('kie-nano-banana', {
+        const { data: statusRes } = await supabase.functions.invoke('fal-muse-image', {
           body: { action: 'status', taskId },
         });
         if (statusRes?.state === 'success' && statusRes?.imageUrl) {
