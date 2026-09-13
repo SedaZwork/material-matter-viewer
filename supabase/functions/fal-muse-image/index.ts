@@ -109,17 +109,24 @@ Deno.serve(async (req) => {
         });
       }
       const id = encodeURIComponent(body.taskId);
-      const statusRes = await fetch(`${FAL_QUEUE_BASE}/requests/${id}/status`, {
-        headers: authHeaders,
-      });
+      // Prefer the exact URLs fal returned at submit time; fall back to the
+      // conventional queue paths. Only allow fal.run hosts (SSRF guard).
+      const isFalUrl = (u: unknown): u is string =>
+        typeof u === 'string' && /^https:\/\/([a-z0-9-]+\.)?fal\.run\//.test(u);
+      const statusUrl = isFalUrl(body.statusUrl)
+        ? body.statusUrl
+        : `${FAL_QUEUE_BASE}/requests/${id}/status`;
+      const responseUrl = isFalUrl(body.responseUrl)
+        ? body.responseUrl
+        : `${FAL_QUEUE_BASE}/requests/${id}`;
+
+      const statusRes = await fetch(statusUrl, { headers: authHeaders });
       const statusData = await statusRes.json().catch(() => ({}));
       const falStatus: string = statusData?.status ?? 'UNKNOWN';
       console.log('fal status http', statusRes.status, JSON.stringify(statusData).slice(0, 2000));
 
       if (falStatus === 'COMPLETED') {
-        const resultRes = await fetch(`${FAL_QUEUE_BASE}/requests/${id}`, {
-          headers: authHeaders,
-        });
+        const resultRes = await fetch(responseUrl, { headers: authHeaders });
         const result = await resultRes.json().catch(() => ({}));
         console.log('fal result http', resultRes.status, JSON.stringify(result).slice(0, 2000));
         const imageUrl: string | null =
