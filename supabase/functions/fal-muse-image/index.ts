@@ -1,10 +1,12 @@
 // fal.ai Muse Image proxy: submit generation task + poll status.
 // Used by the Ring recipe to turn a text prompt (+ optional reference image)
-// into a 3D-printable product concept image via meta/muse-image/edit.
+// into a 3D-printable product concept image.
+//   - meta/muse-image       → text-to-image (no reference)
+//   - meta/muse-image/edit  → image editing (reference images required)
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 
-const FAL_MODEL = 'meta/muse-image/edit';
-const FAL_QUEUE_BASE = `https://queue.fal.run/${FAL_MODEL}`;
+const FAL_MODEL_TXT2IMG = 'meta/muse-image';
+const FAL_MODEL_EDIT = 'meta/muse-image/edit';
 
 interface CreateBody {
   action: 'create';
@@ -77,11 +79,12 @@ Deno.serve(async (req) => {
         output_format: body.outputFormat ?? 'png',
         image_size: SIZE_MAP[body.imageSize ?? '1:1'] ?? 'square_hd',
       };
-      if (Array.isArray(body.imageUrls) && body.imageUrls.length > 0) {
-        input.image_urls = body.imageUrls;
-      }
+      const hasImages = Array.isArray(body.imageUrls) && body.imageUrls.length > 0;
+      if (hasImages) input.image_urls = body.imageUrls;
+      // The edit model requires image_urls; use text-to-image without them.
+      const model = hasImages ? FAL_MODEL_EDIT : FAL_MODEL_TXT2IMG;
 
-      const res = await fetch(FAL_QUEUE_BASE, {
+      const res = await fetch(`https://queue.fal.run/${model}`, {
         method: 'POST',
         headers: authHeaders,
         body: JSON.stringify(input),
