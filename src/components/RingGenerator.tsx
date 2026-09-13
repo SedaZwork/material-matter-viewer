@@ -209,12 +209,14 @@ const RingGenerator: React.FC = () => {
       if (createErr || !createRes?.taskId) throw new Error(createErr?.message || 'Failed to create task');
 
       const taskId = createRes.taskId as string;
+      const statusUrl = createRes.statusUrl as string | null;
+      const responseUrl = createRes.responseUrl as string | null;
       setStatusMsg('Rendering concept image…');
 
       for (let i = 0; i < MAX_POLLS_IMAGE; i++) {
         await sleep(POLL_INTERVAL_MS);
         const { data: statusRes } = await supabase.functions.invoke('fal-muse-image', {
-          body: { action: 'status', taskId },
+          body: { action: 'status', taskId, statusUrl, responseUrl },
         });
         if (statusRes?.state === 'success' && statusRes?.imageUrl) {
           setConceptImageUrl(statusRes.imageUrl);
