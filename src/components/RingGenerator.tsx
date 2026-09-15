@@ -225,7 +225,10 @@ const RingGenerator: React.FC = () => {
           toast({ title: 'Concept ready', description: 'Generate the 3D model when you’re happy with the image.' });
           return;
         }
-        if (statusRes?.state === 'fail') throw new Error('Generation failed');
+        if (statusRes?.state === 'fail') {
+          const detail = statusRes?.raw?.detail?.[0]?.msg || statusRes?.raw?.detail || statusRes?.error;
+          throw new Error(detail ? `Generation failed: ${detail}` : 'Generation failed');
+        }
         setStatusMsg(`Rendering concept image… (${i + 1}/${MAX_POLLS_IMAGE})`);
       }
       throw new Error('Timeout waiting for concept image');
