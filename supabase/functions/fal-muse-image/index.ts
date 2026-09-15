@@ -113,15 +113,16 @@ Deno.serve(async (req) => {
       }
       const id = encodeURIComponent(body.taskId);
       // Prefer the exact URLs fal returned at submit time; fall back to the
-      // conventional queue paths. Only allow fal.run hosts (SSRF guard).
+      // conventional queue paths (fal normalizes polling URLs to the
+      // owner/model base). Only allow fal.run hosts (SSRF guard).
       const isFalUrl = (u: unknown): u is string =>
         typeof u === 'string' && /^https:\/\/([a-z0-9-]+\.)?fal\.run\//.test(u);
       const statusUrl = isFalUrl(body.statusUrl)
         ? body.statusUrl
-        : `${FAL_QUEUE_BASE}/requests/${id}/status`;
+        : `https://queue.fal.run/${FAL_MODEL_TXT2IMG}/requests/${id}/status`;
       const responseUrl = isFalUrl(body.responseUrl)
         ? body.responseUrl
-        : `${FAL_QUEUE_BASE}/requests/${id}`;
+        : `https://queue.fal.run/${FAL_MODEL_TXT2IMG}/requests/${id}`;
 
       const statusRes = await fetch(statusUrl, { headers: authHeaders });
       const statusData = await statusRes.json().catch(() => ({}));
@@ -134,6 +135,13 @@ Deno.serve(async (req) => {
         console.log('fal result http', resultRes.status, JSON.stringify(result).slice(0, 2000));
         const imageUrl: string | null =
           result?.images?.[0]?.url ?? result?.image?.url ?? null;
+        if (!imageUrl) {
+          // fal marks validation/execution failures as COMPLETED with an
+          // error payload — surface it as a failure with the details.
+          return new Response(JSON.stringify({ state: 'fail', imageUrl: null, raw: result }), {
+            status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
         return new Response(JSON.stringify({
           state: 'success',
           imageUrl,
