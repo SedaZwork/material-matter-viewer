@@ -1,11 +1,11 @@
 // fal.ai Muse Image proxy: submit generation task + poll status.
 // Used by the Ring recipe to turn a text prompt (+ optional reference image)
 // into a 3D-printable product concept image.
-//   - meta/muse-image       → text-to-image (no reference)
-//   - meta/muse-image/edit  → image editing (reference images required)
+//   - meta/muse-image/text-to-image → text-to-image (no reference)
+//   - meta/muse-image/edit          → image editing (reference images required)
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 
-const FAL_MODEL_TXT2IMG = 'meta/muse-image';
+const FAL_MODEL_TXT2IMG = 'meta/muse-image/text-to-image';
 const FAL_MODEL_EDIT = 'meta/muse-image/edit';
 
 interface CreateBody {
@@ -38,14 +38,8 @@ const SYSTEM_PROMPTS: Record<string, string> = {
 };
 interface StatusBody { action: 'status'; taskId: string; statusUrl?: string; responseUrl?: string; }
 
-// Map aspect ratios to fal's image_size presets (square_hd ≈ 1024x1024).
-const SIZE_MAP: Record<string, string> = {
-  '1:1': 'square_hd',
-  '3:4': 'portrait_4_3',
-  '4:3': 'landscape_4_3',
-  '16:9': 'landscape_16_9',
-  '9:16': 'portrait_16_9',
-};
+// Muse accepts aspect ratios directly; validate against its enum.
+const ASPECT_RATIOS = new Set(['21:9', '16:9', '4:3', '3:2', '1:1', '2:3', '3:4', '9:16', '9:21']);
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
