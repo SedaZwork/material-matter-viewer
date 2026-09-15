@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
         prompt: finalPrompt,
         num_images: 1,
         output_format: body.outputFormat ?? 'png',
-        image_size: SIZE_MAP[body.imageSize ?? '1:1'] ?? 'square_hd',
+        aspect_ratio: ASPECT_RATIOS.has(body.imageSize ?? '') ? body.imageSize : '1:1',
       };
       const hasImages = Array.isArray(body.imageUrls) && body.imageUrls.length > 0;
       if (hasImages) input.image_urls = body.imageUrls;
