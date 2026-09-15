@@ -1,11 +1,11 @@
 // fal.ai Muse Image proxy: submit generation task + poll status.
 // Used by the Ring recipe to turn a text prompt (+ optional reference image)
 // into a 3D-printable product concept image.
-//   - meta/muse-image       → text-to-image (no reference)
-//   - meta/muse-image/edit  → image editing (reference images required)
+//   - meta/muse-image/text-to-image → text-to-image (no reference)
+//   - meta/muse-image/edit          → image editing (reference images required)
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 
-const FAL_MODEL_TXT2IMG = 'meta/muse-image';
+const FAL_MODEL_TXT2IMG = 'meta/muse-image/text-to-image';
 const FAL_MODEL_EDIT = 'meta/muse-image/edit';
 
 interface CreateBody {
@@ -38,14 +38,8 @@ const SYSTEM_PROMPTS: Record<string, string> = {
 };
 interface StatusBody { action: 'status'; taskId: string; statusUrl?: string; responseUrl?: string; }
 
-// Map aspect ratios to fal's image_size presets (square_hd ≈ 1024x1024).
-const SIZE_MAP: Record<string, string> = {
-  '1:1': 'square_hd',
-  '3:4': 'portrait_4_3',
-  '4:3': 'landscape_4_3',
-  '16:9': 'landscape_16_9',
-  '9:16': 'portrait_16_9',
-};
+// Muse accepts aspect ratios directly; validate against its enum.
+const ASPECT_RATIOS = new Set(['21:9', '16:9', '4:3', '3:2', '1:1', '2:3', '3:4', '9:16', '9:21']);
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -77,7 +71,7 @@ Deno.serve(async (req) => {
         prompt: finalPrompt,
         num_images: 1,
         output_format: body.outputFormat ?? 'png',
-        image_size: SIZE_MAP[body.imageSize ?? '1:1'] ?? 'square_hd',
+        aspect_ratio: ASPECT_RATIOS.has(body.imageSize ?? '') ? body.imageSize : '1:1',
       };
       const hasImages = Array.isArray(body.imageUrls) && body.imageUrls.length > 0;
       if (hasImages) input.image_urls = body.imageUrls;
@@ -113,15 +107,16 @@ Deno.serve(async (req) => {
       }
       const id = encodeURIComponent(body.taskId);
       // Prefer the exact URLs fal returned at submit time; fall back to the
-      // conventional queue paths. Only allow fal.run hosts (SSRF guard).
+      // conventional queue paths (fal normalizes polling URLs to the
+      // owner/model base). Only allow fal.run hosts (SSRF guard).
       const isFalUrl = (u: unknown): u is string =>
         typeof u === 'string' && /^https:\/\/([a-z0-9-]+\.)?fal\.run\//.test(u);
       const statusUrl = isFalUrl(body.statusUrl)
         ? body.statusUrl
-        : `${FAL_QUEUE_BASE}/requests/${id}/status`;
+        : `https://queue.fal.run/${FAL_MODEL_TXT2IMG}/requests/${id}/status`;
       const responseUrl = isFalUrl(body.responseUrl)
         ? body.responseUrl
-        : `${FAL_QUEUE_BASE}/requests/${id}`;
+        : `https://queue.fal.run/${FAL_MODEL_TXT2IMG}/requests/${id}`;
 
       const statusRes = await fetch(statusUrl, { headers: authHeaders });
       const statusData = await statusRes.json().catch(() => ({}));
@@ -134,6 +129,13 @@ Deno.serve(async (req) => {
         console.log('fal result http', resultRes.status, JSON.stringify(result).slice(0, 2000));
         const imageUrl: string | null =
           result?.images?.[0]?.url ?? result?.image?.url ?? null;
+        if (!imageUrl) {
+          // fal marks validation/execution failures as COMPLETED with an
+          // error payload — surface it as a failure with the details.
+          return new Response(JSON.stringify({ state: 'fail', imageUrl: null, raw: result }), {
+            status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
         return new Response(JSON.stringify({
           state: 'success',
           imageUrl,
