@@ -18,6 +18,8 @@ import {
   ringSizeUsToDiameterMm, ringDiameterMmToSizeUs,
 } from '@/utils/measurements';
 import { logger } from '@/utils/logger';
+import ScanUpload from '@/components/ScanUpload';
+import type { ScanMeasurements } from '@/utils/scanMeasure';
 
 type Measurements = {
   ring_diameter_mm: string;
@@ -70,6 +72,7 @@ const Account: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [jobs, setJobs] = useState<any[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(false);
+  const [scanOpen, setScanOpen] = useState(false);
 
   // ── unit helpers ───────────────────────────────────────────────
   const toMetric = (key: keyof Measurements, display: string): number | null | typeof NaN => {
