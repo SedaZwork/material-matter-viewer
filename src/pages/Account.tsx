@@ -316,9 +316,10 @@ const Account: React.FC = () => {
                     Used to auto-fit personalized recipes (rings, shoes, wearables). All fields optional.
                   </p>
                 </div>
-                <Button variant="outline" size="sm" disabled className="shrink-0">
-                  <ScanLine className="w-3.5 h-3.5 mr-1.5" /> Scan (coming soon)
+                <Button variant="outline" size="sm" className="shrink-0" onClick={() => setScanOpen(true)}>
+                  <ScanLine className="w-3.5 h-3.5 mr-1.5" /> Measure from scan
                 </Button>
+                <ScanUpload open={scanOpen} onOpenChange={setScanOpen} onApply={applyScan} />
               </div>
 
               <section className="space-y-2">
