@@ -18,6 +18,8 @@ import {
   ringSizeUsToDiameterMm, ringDiameterMmToSizeUs,
 } from '@/utils/measurements';
 import { logger } from '@/utils/logger';
+import ScanUpload from '@/components/ScanUpload';
+import type { ScanMeasurements } from '@/utils/scanMeasure';
 
 type Measurements = {
   ring_diameter_mm: string;
@@ -70,6 +72,7 @@ const Account: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [jobs, setJobs] = useState<any[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(false);
+  const [scanOpen, setScanOpen] = useState(false);
 
   // ── unit helpers ───────────────────────────────────────────────
   const toMetric = (key: keyof Measurements, display: string): number | null | typeof NaN => {
@@ -190,17 +193,13 @@ const Account: React.FC = () => {
       });
   }, [user]);
 
-  const save = async () => {
+  const persist = async (values: Measurements, source: 'manual' | 'scan') => {
     if (!user) return;
-    if (hasErrors) {
-      toast.error('Please fix the highlighted measurements first');
-      return;
-    }
     setSaving(true);
-    const payload: any = { user_id: user.id, scan_source: 'manual' };
+    const payload: any = { user_id: user.id, scan_source: source };
     (Object.keys(EMPTY) as (keyof Measurements)[]).forEach((k) => {
-      if (k === 'notes') { payload[k] = m[k]?.trim() ? m[k].trim().slice(0, 1000) : null; return; }
-      const v = toMetric(k, m[k]);
+      if (k === 'notes') { payload[k] = values[k]?.trim() ? values[k].trim().slice(0, 1000) : null; return; }
+      const v = toMetric(k, values[k]);
       payload[k] = typeof v === 'number' && !Number.isNaN(v) ? round(v, 2) : null;
     });
     const { error } = await supabase
@@ -210,9 +209,33 @@ const Account: React.FC = () => {
     if (error) {
       logger.error('save measurements', error);
       toast.error('Could not save measurements');
-    } else {
-      toast.success('Measurements saved');
+      return false;
     }
+    toast.success(source === 'scan' ? 'Scan measurements saved' : 'Measurements saved');
+    return true;
+  };
+
+  const save = async () => {
+    if (hasErrors) {
+      toast.error('Please fix the highlighted measurements first');
+      return;
+    }
+    await persist(m, 'manual');
+  };
+
+  // Fill the form from an uploaded 3D scan (values arrive in mm / cm) and save it.
+  const applyScan = async (scan: ScanMeasurements) => {
+    const next: Measurements = { ...m };
+    (Object.keys(scan) as (keyof ScanMeasurements)[]).forEach((k) => {
+      const metric = scan[k];
+      if (typeof metric !== 'number' || !Number.isFinite(metric)) return;
+      (next as any)[k] = String(toDisplay(k as keyof Measurements, metric));
+    });
+    if (typeof scan.ring_diameter_mm === 'number') {
+      next.ring_size_us = String(ringDiameterMmToSizeUs(scan.ring_diameter_mm));
+    }
+    setM(next);
+    await persist(next, 'scan');
   };
 
   // Keep US ring size and inner diameter in sync.
@@ -293,9 +316,10 @@ const Account: React.FC = () => {
                     Used to auto-fit personalized recipes (rings, shoes, wearables). All fields optional.
                   </p>
                 </div>
-                <Button variant="outline" size="sm" disabled className="shrink-0">
-                  <ScanLine className="w-3.5 h-3.5 mr-1.5" /> Scan (coming soon)
+                <Button variant="outline" size="sm" className="shrink-0" onClick={() => setScanOpen(true)}>
+                  <ScanLine className="w-3.5 h-3.5 mr-1.5" /> Measure from scan
                 </Button>
+                <ScanUpload open={scanOpen} onOpenChange={setScanOpen} onApply={applyScan} />
               </div>
 
               <section className="space-y-2">
