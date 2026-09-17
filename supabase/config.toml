@@ -9,8 +9,9 @@ verify_jwt = false
 [functions.fal-muse-image]
 verify_jwt = false
 
-[functions.piapi-trellis]
+[functions.fal-tripo-3d]
 verify_jwt = false
+
 
 [functions.mirror-generated-model]
 verify_jwt = false
