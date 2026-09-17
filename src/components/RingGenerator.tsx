@@ -428,8 +428,9 @@ const RingGenerator: React.FC = () => {
           conceptImageUrl,
           generationPrompt: prompt,
           generationMetadata: {
-            providers: { image: 'fal/meta-muse-image', mesh: 'piapi/trellis' },
-            trellisSettings: trellis,
+            providers: { image: 'fal/meta-muse-image', mesh: 'fal/tripo3d-h3.1-image-to-3d' },
+            tripoSettings: tripo,
+
             ringFit: {
               innerDiameterMm: ringDiameterMm,
               ringSizeUs: ringDiameterMmToSizeUs(ringDiameterMm),
