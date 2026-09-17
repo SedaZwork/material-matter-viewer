@@ -99,7 +99,7 @@ const RingGenerator: React.FC = () => {
   const [stage, setStage] = useState<Stage>('idle');
   const [statusMsg, setStatusMsg] = useState('');
   const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [trellis, setTrellis] = useState({ ...TRELLIS_DEFAULTS });
+  const [tripo, setTripo] = useState({ ...TRIPO_DEFAULTS });
   const [ringDiameterMm, setRingDiameterMm] = useState<number>(DEFAULT_RING_INNER_DIAMETER_MM);
   const [ringSizeFromProfile, setRingSizeFromProfile] = useState(false);
 
