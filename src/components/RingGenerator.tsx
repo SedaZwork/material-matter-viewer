@@ -21,13 +21,17 @@ import {
   round,
 } from '@/utils/measurements';
 
-const TRELLIS_DEFAULTS = {
-  ssSamplingSteps: 50,
-  slatSamplingSteps: 50,
-  ssGuidanceStrength: 9.5,
-  slatGuidanceStrength: 5,
-  seed: 0,
+const TRIPO_DEFAULTS = {
+  pbr: false,
+  texture: false,
+  orientation: 'default' as 'default' | 'align_image',
+  textureQuality: 'standard' as 'standard' | 'detailed',
+  geometryQuality: 'standard' as 'standard' | 'detailed',
+  textureAlignment: 'original_image' as 'original_image' | 'geometry',
+  faceLimit: 2000000,
+  autoSize: true,
 };
+
 
 type Stage = 'idle' | 'generating-image' | 'image-ready' | 'generating-3d' | 'model-ready';
 
