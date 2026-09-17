@@ -590,7 +590,7 @@ const RingGenerator: React.FC = () => {
                   {stage === 'generating-3d' ? (
                     <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Reconstructing…</>
                   ) : (
-                    <><Box className="w-4 h-4 mr-2" /> Generate 3D model (Trellis)</>
+                    <><Box className="w-4 h-4 mr-2" /> Generate 3D model (Tripo H3.1)</>
                   )}
                 </Button>
 
@@ -601,55 +601,87 @@ const RingGenerator: React.FC = () => {
                       className="w-full flex items-center justify-between text-[11px] uppercase tracking-[0.2em] text-black/55 hover:text-black py-1"
                     >
                       <span className="flex items-center gap-1.5">
-                        <SlidersHorizontal className="w-3.5 h-3.5" /> Advanced Trellis settings
+                        <SlidersHorizontal className="w-3.5 h-3.5" /> Advanced Tripo settings
                       </span>
                       <span>{advancedOpen ? '−' : '+'}</span>
                     </button>
                   </CollapsibleTrigger>
                   <CollapsibleContent className="space-y-4 pt-3">
                     {([
-                      { key: 'ssSamplingSteps', label: 'Structure sampling steps', min: 1, max: 50, step: 1 },
-                      { key: 'slatSamplingSteps', label: 'Detail sampling steps', min: 1, max: 50, step: 1 },
-                      { key: 'ssGuidanceStrength', label: 'Structure guidance', min: 0, max: 15, step: 0.1 },
-                      { key: 'slatGuidanceStrength', label: 'Detail guidance', min: 0, max: 15, step: 0.1 },
+                      { key: 'geometryQuality', label: 'Geometry quality', options: ['standard', 'detailed'] },
+                      { key: 'textureQuality', label: 'Texture quality', options: ['standard', 'detailed'] },
+                      { key: 'textureAlignment', label: 'Texture alignment', options: ['original_image', 'geometry'] },
+                      { key: 'orientation', label: 'Orientation', options: ['default', 'align_image'] },
                     ] as const).map((f) => (
                       <div key={f.key} className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <Label className="text-xs text-black/70">{f.label}</Label>
-                          <span className="text-xs tabular-nums text-black/55">{trellis[f.key]}</span>
+                        <Label className="text-xs text-black/70">{f.label}</Label>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {f.options.map((opt) => (
+                            <button
+                              key={opt}
+                              type="button"
+                              disabled={busy}
+                              onClick={() => setTripo((t) => ({ ...t, [f.key]: opt }))}
+                              className={`text-[11px] py-1.5 rounded-md border transition ${
+                                tripo[f.key] === opt
+                                  ? 'bg-white/85 border-white text-black'
+                                  : 'bg-white/40 border-white/50 text-black/55 hover:bg-white/60'
+                              }`}
+                            >
+                              {opt.replace('_', ' ')}
+                            </button>
+                          ))}
                         </div>
-                        <Slider
-                          value={[trellis[f.key]]}
-                          min={f.min}
-                          max={f.max}
-                          step={f.step}
+                      </div>
+                    ))}
+
+                    {([
+                      { key: 'texture', label: 'Generate texture' },
+                      { key: 'pbr', label: 'PBR materials' },
+                      { key: 'autoSize', label: 'Auto size' },
+                    ] as const).map((f) => (
+                      <div key={f.key} className="flex items-center justify-between">
+                        <Label className="text-xs text-black/70">{f.label}</Label>
+                        <button
+                          type="button"
                           disabled={busy}
-                          onValueChange={([v]) => setTrellis((t) => ({ ...t, [f.key]: v }))}
-                        />
+                          onClick={() => setTripo((t) => ({ ...t, [f.key]: !t[f.key] }))}
+                          className={`text-[11px] px-3 py-1 rounded-md border transition ${
+                            tripo[f.key]
+                              ? 'bg-white/85 border-white text-black'
+                              : 'bg-white/40 border-white/50 text-black/55 hover:bg-white/60'
+                          }`}
+                        >
+                          {tripo[f.key] ? 'On' : 'Off'}
+                        </button>
                       </div>
                     ))}
 
                     <div className="space-y-1.5">
-                      <Label className="text-xs text-black/70">Seed (0 = random)</Label>
-                      <Input
-                        type="number"
-                        value={trellis.seed}
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs text-black/70">Face limit</Label>
+                        <span className="text-xs tabular-nums text-black/55">
+                          {tripo.faceLimit.toLocaleString()}
+                        </span>
+                      </div>
+                      <Slider
+                        value={[tripo.faceLimit]}
+                        min={10000}
+                        max={2000000}
+                        step={10000}
                         disabled={busy}
-                        onChange={(e) =>
-                          setTrellis((t) => ({ ...t, seed: Number(e.target.value) || 0 }))
-                        }
-                        className="bg-white/60 border-white/50 text-sm"
+                        onValueChange={([v]) => setTripo((t) => ({ ...t, faceLimit: v }))}
                       />
                     </div>
 
                     <div className="flex items-center justify-between">
                       <p className="text-[11px] text-black/50">
-                        Higher steps &amp; guidance = more detail, slower runs.
+                        Detailed geometry = more fidelity, slower runs.
                       </p>
                       <button
                         type="button"
                         disabled={busy}
-                        onClick={() => setTrellis({ ...TRELLIS_DEFAULTS })}
+                        onClick={() => setTripo({ ...TRIPO_DEFAULTS })}
                         className="text-[11px] text-black/55 hover:text-black flex items-center gap-1"
                       >
                         <RotateCcw className="w-3 h-3" /> Reset
@@ -657,6 +689,7 @@ const RingGenerator: React.FC = () => {
                     </div>
                   </CollapsibleContent>
                 </Collapsible>
+
               </>
             )}
 
