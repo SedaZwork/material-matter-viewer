@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
       const input = {
         pbr: body.pbr ?? false,
         texture: body.texture ?? false,
-        image_url: { path: body.imageUrl, relativePath: body.imageUrl },
+        image_url: body.imageUrl,
         orientation: oneOf(body.orientation, ['default', 'align_image'] as const, 'default'),
         texture_quality: oneOf(body.textureQuality, ['standard', 'detailed'] as const, 'standard'),
         geometry_quality: oneOf(body.geometryQuality, ['standard', 'detailed'] as const, 'standard'),
