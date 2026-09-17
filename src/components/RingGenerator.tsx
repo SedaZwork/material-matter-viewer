@@ -248,37 +248,36 @@ const RingGenerator: React.FC = () => {
     }
   };
 
-  // ── Step 2: Trellis image → 3D ────────────────────────────────────────
+  // ── Step 2: fal.ai Tripo H3.1 image → 3D ──────────────────────────────
   const generate3D = async () => {
     if (!conceptImageUrl) return;
     setStage('generating-3d');
-    setStatusMsg('Submitting image to Trellis…');
+    setStatusMsg('Submitting image to Tripo H3.1…');
     setModelUrl(null);
 
     try {
-      const { data: createRes, error: createErr } = await supabase.functions.invoke('piapi-trellis', {
+      const { data: createRes, error: createErr } = await supabase.functions.invoke('fal-tripo-3d', {
         body: {
           action: 'create',
           imageUrl: conceptImageUrl,
-          ssSamplingSteps: trellis.ssSamplingSteps,
-          slatSamplingSteps: trellis.slatSamplingSteps,
-          ssGuidanceStrength: trellis.ssGuidanceStrength,
-          slatGuidanceStrength: trellis.slatGuidanceStrength,
-          seed: trellis.seed,
+          ...tripo,
         },
       });
       if (createErr || !createRes?.taskId) throw new Error(createErr?.message || 'Failed to create 3D task');
 
       const taskId = createRes.taskId as string;
+      const statusUrl = createRes.statusUrl as string | null;
+      const responseUrl = createRes.responseUrl as string | null;
       setStatusMsg('Reconstructing 3D geometry…');
 
       for (let i = 0; i < MAX_POLLS_MODEL; i++) {
         await sleep(POLL_INTERVAL_MS);
-        const { data: statusRes } = await supabase.functions.invoke('piapi-trellis', {
-          body: { action: 'status', taskId },
+        const { data: statusRes } = await supabase.functions.invoke('fal-tripo-3d', {
+          body: { action: 'status', taskId, statusUrl, responseUrl },
         });
         const s = statusRes?.state;
         if ((s === 'completed' || s === 'success') && statusRes?.modelUrl) {
+
           // Mirror the model into our bucket under a fresh ref code.
           const code = newRefCode();
           setStatusMsg('Saving model to your library…');
