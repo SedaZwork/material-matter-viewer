@@ -53,7 +53,7 @@ const CameraRig: React.FC<{
   const { camera } = useThree();
 
   useEffect(() => {
-    const dist = Math.max(4.5, 4.7 * scale);
+    const dist = Math.max(5.6, 5.8 * scale);
     camera.position.set(dist * 0.64, dist * 0.48, dist * 0.64);
     camera.lookAt(0, 0, 0);
     camera.updateProjectionMatrix();
@@ -204,7 +204,7 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
             <div className="flex gap-2 pointer-events-auto">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" onClick={() => setResetSignal(value => value + 1)} className="h-9 w-9 bg-viewport-panel text-viewport-foreground border border-viewport-border hover:bg-viewport-control hover:text-viewport-foreground">
+                  <Button aria-label="Center model" variant="ghost" size="icon" onClick={() => setResetSignal(value => value + 1)} className="h-9 w-9 bg-viewport-panel text-viewport-foreground border border-viewport-border hover:bg-viewport-control hover:text-viewport-foreground">
                     <Focus className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
@@ -212,7 +212,7 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" onClick={enterFullscreen} className="h-9 w-9 bg-viewport-panel text-viewport-foreground border border-viewport-border hover:bg-viewport-control hover:text-viewport-foreground">
+                  <Button aria-label="Full screen" variant="ghost" size="icon" onClick={enterFullscreen} className="h-9 w-9 bg-viewport-panel text-viewport-foreground border border-viewport-border hover:bg-viewport-control hover:text-viewport-foreground">
                     <Maximize2 className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>

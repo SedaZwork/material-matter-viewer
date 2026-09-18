@@ -234,7 +234,7 @@ const Index = () => {
       <main className="container mx-auto px-6 py-6">
         <div className="flex gap-6 max-w-[1400px] mx-auto">
           {/* Main area */}
-          <div className="flex-1 space-y-5">
+          <div className="min-w-0 flex-1 space-y-5">
             {/* 3D Viewer */}
             <div className="relative">
               {isLoading && (
