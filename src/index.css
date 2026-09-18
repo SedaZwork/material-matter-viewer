@@ -34,6 +34,13 @@
     --input: 220 10% 90%;
     --ring: 220 80% 50%;
 
+    --viewport: 240 10% 6%;
+    --viewport-panel: 240 8% 12% / 0.82;
+    --viewport-control: 240 7% 20%;
+    --viewport-border: 45 8% 88% / 0.18;
+    --viewport-foreground: 45 24% 95%;
+    --viewport-muted: 50 8% 76%;
+
     --radius: 0.75rem;
 
     /* Material Colors */

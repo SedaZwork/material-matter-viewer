@@ -14,6 +14,14 @@ export default {
     },
     extend: {
       colors: {
+        viewport: {
+          DEFAULT: "hsl(var(--viewport))",
+          panel: "hsl(var(--viewport-panel))",
+          control: "hsl(var(--viewport-control))",
+          border: "hsl(var(--viewport-border))",
+          foreground: "hsl(var(--viewport-foreground))",
+          muted: "hsl(var(--viewport-muted))",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
