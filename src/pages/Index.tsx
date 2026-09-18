@@ -232,7 +232,7 @@ const Index = () => {
       <Header />
 
       <main className="container mx-auto px-6 py-6">
-        <div className="flex gap-6 max-w-[1400px] mx-auto">
+        <div className="flex w-full min-w-0 gap-6 max-w-[1400px] mx-auto overflow-hidden lg:overflow-visible">
           {/* Main area */}
           <div className="min-w-0 flex-1 space-y-5">
             {/* 3D Viewer */}
@@ -255,7 +255,7 @@ const Index = () => {
             </div>
 
             {/* Checkout bar */}
-            <div id="checkout-controls" className="flex items-center gap-3 p-4 rounded-xl bg-card border border-border shadow-card">
+            <div id="checkout-controls" className="flex min-w-0 flex-wrap items-center gap-3 p-4 rounded-xl bg-card border border-border shadow-card sm:flex-nowrap">
               <div className="flex items-center gap-2 flex-1">
                 <Label htmlFor="quantity" className="text-xs text-muted-foreground whitespace-nowrap">Qty</Label>
                 <Input
@@ -265,7 +265,7 @@ const Index = () => {
                 />
               </div>
               <Button
-                className="h-9 px-6 text-sm font-medium"
+                className="h-9 min-w-0 px-4 text-sm font-medium sm:px-6"
                 onClick={scrollToManufacturing}
                 disabled={!selectedMaterial}
               >
