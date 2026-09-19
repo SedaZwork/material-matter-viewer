@@ -195,6 +195,36 @@ const Account: React.FC = () => {
       });
   }, [user]);
 
+  // Generated concept images + 3D models, with fresh signed URLs for the private bucket.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    setLoadingAssets(true);
+    (async () => {
+      const { data, error } = await supabase
+        .from('generated_assets')
+        .select('id, ref_code, kind, recipe, prompt, storage_path, source_url, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      if (error) logger.error('load generated assets', error);
+      const rows = data ?? [];
+      const withUrls = await Promise.all(
+        rows.map(async (r: any) => {
+          if (!r.storage_path) return { ...r, url: r.source_url ?? null };
+          const { data: signed } = await supabase.storage
+            .from('0K3D_Modelos_Generados')
+            .createSignedUrl(r.storage_path, 60 * 60);
+          return { ...r, url: signed?.signedUrl ?? r.source_url ?? null };
+        }),
+      );
+      if (!cancelled) {
+        setAssets(withUrls);
+        setLoadingAssets(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user]);
+
   const persist = async (values: Measurements, source: 'manual' | 'scan') => {
     if (!user) return;
     setSaving(true);
