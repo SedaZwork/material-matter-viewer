@@ -96,6 +96,7 @@ const RingGenerator: React.FC = () => {
   const [modelUrl, setModelUrl] = useState<string | null>(null);
   const [refCode, setRefCode] = useState<string | null>(null);
   const [modelStoragePath, setModelStoragePath] = useState<string | null>(null);
+  const [conceptStoragePath, setConceptStoragePath] = useState<string | null>(null);
   const [stage, setStage] = useState<Stage>('idle');
   const [statusMsg, setStatusMsg] = useState('');
   const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -132,6 +133,47 @@ const RingGenerator: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+  // Mirror a generated asset into storage and record it in the user's library.
+  const persistAsset = async ({
+    kind,
+    refCode: code,
+    sourceUrl,
+  }: {
+    kind: 'concept_image' | 'model';
+    refCode: string;
+    sourceUrl: string;
+  }): Promise<{ path: string; signedUrl: string } | null> => {
+    try {
+      const { data: mirror, error: mirrorErr } = await supabase.functions.invoke(
+        'mirror-generated-model',
+        { body: { sourceUrl, refCode: code, kind } },
+      );
+      if (mirrorErr || !mirror?.signedUrl) throw mirrorErr || new Error('Mirror failed');
+
+      if (user) {
+        const { error: insErr } = await supabase.from('generated_assets').insert({
+          user_id: user.id,
+          ref_code: code,
+          kind,
+          recipe: 'ring',
+          prompt,
+          storage_path: mirror.path,
+          source_url: sourceUrl,
+          metadata: {
+            providers: { image: 'fal/meta-muse-image', mesh: 'fal/tripo3d-h3.1-image-to-3d' },
+            ...(kind === 'model' ? { tripoSettings: tripo } : {}),
+            referenceImagePath: uploadedRefPath,
+          },
+        });
+        if (insErr) logger.error('Could not record generated asset', insErr);
+      }
+      return { path: mirror.path as string, signedUrl: mirror.signedUrl as string };
+    } catch (err) {
+      logger.error('Persisting generated asset failed', err);
+      return null;
+    }
+  };
 
   const newRefCode = () =>
     '0K3D-' +
