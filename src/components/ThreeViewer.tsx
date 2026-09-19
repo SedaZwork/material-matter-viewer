@@ -1,6 +1,6 @@
 import React, { Suspense, useRef, useEffect, useState, useMemo } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
-import { OrbitControls, Environment, Grid, GizmoHelper, GizmoViewport, ContactShadows } from '@react-three/drei';
+import { OrbitControls, Grid, GizmoHelper, GizmoViewport, ContactShadows } from '@react-three/drei';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import MaterialSelector from '@/components/MaterialSelector';
@@ -227,10 +227,11 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
           <color attach="background" args={['#0d0d10']} />
           <fog attach="fog" args={['#0d0d10', 10, 24]} />
           <Suspense fallback={null}>
-            <Environment preset="studio" />
-            <ambientLight intensity={0.3} />
+            <ambientLight intensity={0.55} />
+            <hemisphereLight args={['#dfe7f2', '#1a1a20', 0.7]} />
             <directionalLight position={[6, 9, 5]} intensity={2.2} castShadow />
-            <directionalLight position={[-5, 3, -4]} intensity={0.65} color="#6a9bcc" />
+            <directionalLight position={[-5, 3, -4]} intensity={0.8} color="#6a9bcc" />
+            <directionalLight position={[0, -4, -6]} intensity={0.4} color="#ffd9b0" />
             <Model materialColor={materialColor} geometry={normalizedGeometry} scale={scale} />
             <ContactShadows position={[0, -1.62 * scale, 0]} opacity={0.45} scale={9} blur={2.5} far={5} />
             <Grid
