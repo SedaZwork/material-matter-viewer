@@ -489,6 +489,7 @@ const RingGenerator: React.FC = () => {
               scaleFactor: round(factor, 4),
               source: ringSizeFromProfile ? 'user_measurements' : 'default',
             },
+            conceptStoragePath,
             referenceImagePath: uploadedRefPath,
             referenceImageUrl: referenceImageUrl || null,
             createdAt: new Date().toISOString(),
