@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { ArrowLeft, Ruler, Package, FileBox, ScanLine, Save } from 'lucide-react';
+import { ArrowLeft, Ruler, Package, FileBox, ScanLine, Save, Download } from 'lucide-react';
 import {
   LengthUnit, BodyUnit, WeightUnit,
   toMm, fromMm, toCm, fromCm, toKg, fromKg,
@@ -73,6 +73,8 @@ const Account: React.FC = () => {
   const [jobs, setJobs] = useState<any[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
+  const [assets, setAssets] = useState<any[]>([]);
+  const [loadingAssets, setLoadingAssets] = useState(false);
 
   // ── unit helpers ───────────────────────────────────────────────
   const toMetric = (key: keyof Measurements, display: string): number | null | typeof NaN => {
@@ -191,6 +193,36 @@ const Account: React.FC = () => {
         setJobs(data ?? []);
         setLoadingJobs(false);
       });
+  }, [user]);
+
+  // Generated concept images + 3D models, with fresh signed URLs for the private bucket.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    setLoadingAssets(true);
+    (async () => {
+      const { data, error } = await supabase
+        .from('generated_assets')
+        .select('id, ref_code, kind, recipe, prompt, storage_path, source_url, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      if (error) logger.error('load generated assets', error);
+      const rows = data ?? [];
+      const withUrls = await Promise.all(
+        rows.map(async (r: any) => {
+          if (!r.storage_path) return { ...r, url: r.source_url ?? null };
+          const { data: signed } = await supabase.storage
+            .from('0K3D_Modelos_Generados')
+            .createSignedUrl(r.storage_path, 60 * 60);
+          return { ...r, url: signed?.signedUrl ?? r.source_url ?? null };
+        }),
+      );
+      if (!cancelled) {
+        setAssets(withUrls);
+        setLoadingAssets(false);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [user]);
 
   const persist = async (values: Measurements, source: 'manual' | 'scan') => {
@@ -387,13 +419,60 @@ const Account: React.FC = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="files">
+          <TabsContent value="files" className="space-y-4">
             <Card className="p-5">
-              <h2 className="text-sm font-semibold mb-3">Uploaded & generated files</h2>
+              <h2 className="text-sm font-semibold mb-3">Generated designs</h2>
+              {loadingAssets ? (
+                <p className="text-xs text-muted-foreground">Loading…</p>
+              ) : assets.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Nothing generated yet. Concept images and 3D models you create are saved here automatically.
+                </p>
+              ) : (
+                <ul className="divide-y divide-border">
+                  {assets.map((a) => (
+                    <li key={a.id} className="py-3 flex items-center gap-3">
+                      {a.kind === 'concept_image' && a.url ? (
+                        <img src={a.url} alt="" className="w-12 h-12 rounded-md object-cover border border-border" />
+                      ) : (
+                        <div className="w-12 h-12 rounded-md bg-secondary flex items-center justify-center">
+                          <FileBox className="w-5 h-5 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-mono">{a.ref_code}</span>
+                          <Badge variant="outline" className="text-[10px] py-0 h-4">
+                            {a.kind === 'model' ? '3D model' : 'concept'}
+                          </Badge>
+                          <Badge variant="outline" className="text-[10px] py-0 h-4">{a.recipe}</Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">{a.prompt || a.storage_path}</p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-[10px] text-muted-foreground">
+                          {new Date(a.created_at).toLocaleDateString()}
+                        </span>
+                        {a.url && (
+                          <Button asChild variant="outline" size="sm" className="h-7 text-[11px]">
+                            <a href={a.url} target="_blank" rel="noreferrer">
+                              <Download className="w-3 h-3 mr-1" /> Open
+                            </a>
+                          </Button>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+
+            <Card className="p-5">
+              <h2 className="text-sm font-semibold mb-3">Quoted & ordered files</h2>
               {loadingJobs ? (
                 <p className="text-xs text-muted-foreground">Loading…</p>
               ) : jobs.length === 0 ? (
-                <p className="text-xs text-muted-foreground">No files yet. Create a design to see it here.</p>
+                <p className="text-xs text-muted-foreground">No quoted files yet.</p>
               ) : (
                 <ul className="divide-y divide-border">
                   {jobs.map((j) => (

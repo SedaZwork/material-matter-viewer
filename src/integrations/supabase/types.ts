@@ -122,6 +122,48 @@ export type Database = {
         }
         Relationships: []
       }
+      generated_assets: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          metadata: Json | null
+          prompt: string | null
+          recipe: string
+          ref_code: string
+          source_url: string | null
+          storage_path: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind: string
+          metadata?: Json | null
+          prompt?: string | null
+          recipe?: string
+          ref_code: string
+          source_url?: string | null
+          storage_path?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          metadata?: Json | null
+          prompt?: string | null
+          recipe?: string
+          ref_code?: string
+          source_url?: string | null
+          storage_path?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       print_jobs: {
         Row: {
           assigned_fabricator_id: string | null
