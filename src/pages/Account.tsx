@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { ArrowLeft, Ruler, Package, FileBox, ScanLine, Save } from 'lucide-react';
+import { ArrowLeft, Ruler, Package, FileBox, ScanLine, Save, Download } from 'lucide-react';
 import {
   LengthUnit, BodyUnit, WeightUnit,
   toMm, fromMm, toCm, fromCm, toKg, fromKg,
@@ -73,6 +73,8 @@ const Account: React.FC = () => {
   const [jobs, setJobs] = useState<any[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
+  const [assets, setAssets] = useState<any[]>([]);
+  const [loadingAssets, setLoadingAssets] = useState(false);
 
   // ── unit helpers ───────────────────────────────────────────────
   const toMetric = (key: keyof Measurements, display: string): number | null | typeof NaN => {
