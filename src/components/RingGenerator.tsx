@@ -226,6 +226,16 @@ const RingGenerator: React.FC = () => {
           setConceptImageUrl(statusRes.imageUrl);
           setStage('image-ready');
           setStatusMsg('');
+          // Persist the concept into the user's library (stored copy + signed URL).
+          const code = refCode ?? newRefCode();
+          setRefCode(code);
+          const stored = await persistAsset({
+            kind: 'concept_image',
+            refCode: code,
+            sourceUrl: statusRes.imageUrl,
+          });
+          if (stored?.signedUrl) setConceptImageUrl(stored.signedUrl);
+          if (stored?.path) setConceptStoragePath(stored.path);
           toast({ title: 'Concept ready', description: 'Generate the 3D model when you’re happy with the image.' });
           return;
         }
@@ -278,20 +288,20 @@ const RingGenerator: React.FC = () => {
         const s = statusRes?.state;
         if ((s === 'completed' || s === 'success') && statusRes?.modelUrl) {
 
-          // Mirror the model into our bucket under a fresh ref code.
-          const code = newRefCode();
+          // Mirror the model into our bucket and record it in the user's library.
+          const code = refCode ?? newRefCode();
+          setRefCode(code);
           setStatusMsg('Saving model to your library…');
-          const { data: mirror, error: mirrorErr } = await supabase.functions.invoke(
-            'mirror-generated-model',
-            { body: { sourceUrl: statusRes.modelUrl, refCode: code } },
-          );
-          if (mirrorErr || !mirror?.signedUrl) {
-            logger.error('Mirror failed, falling back to source URL', mirrorErr);
-            setModelUrl(statusRes.modelUrl);
+          const stored = await persistAsset({
+            kind: 'model',
+            refCode: code,
+            sourceUrl: statusRes.modelUrl,
+          });
+          if (stored?.signedUrl) {
+            setModelUrl(stored.signedUrl);
+            setModelStoragePath(stored.path);
           } else {
-            setModelUrl(mirror.signedUrl);
-            setModelStoragePath(mirror.path);
-            setRefCode(code);
+            setModelUrl(statusRes.modelUrl);
           }
           setStage('model-ready');
           setStatusMsg('');
