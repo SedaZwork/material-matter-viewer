@@ -497,7 +497,7 @@ const RingGenerator: React.FC = () => {
         }),
       );
       merged.dispose();
-      navigate('/', { state: { fromVessel: true } });
+      navigate('/', { state: { fromVessel: true, recipe: 'ring' } });
     } catch (err) {
       logger.error('Failed to hand off model', err);
       toast({

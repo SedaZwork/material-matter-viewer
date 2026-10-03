@@ -462,7 +462,7 @@ const TerrainGenerator = () => {
     sessionStorage.setItem('transferGeometryJSON', JSON.stringify(json));
     sessionStorage.removeItem('vesselSTL');
     baked.dispose();
-    navigate('/', { state: { fromVessel: true } });
+    navigate('/', { state: { fromVessel: true, recipe: 'terrain' } });
   };
 
   const selectLocation = (loc: QuickLocation) => {
