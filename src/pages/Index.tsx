@@ -220,7 +220,7 @@ const Index = () => {
             <p className="text-muted-foreground text-sm mb-8">
               Upload an STL file to preview, configure materials, and order prints
             </p>
-            <FileAnalysis onVolumeCalculated={handleVolumeCalculated} onModelLoaded={handleModelLoaded} />
+            <FileAnalysis onVolumeCalculated={handleVolumeCalculated} onModelLoaded={(g) => { setRecipe('upload'); handleModelLoaded(g); }} />
           </div>
         </main>
       </div>

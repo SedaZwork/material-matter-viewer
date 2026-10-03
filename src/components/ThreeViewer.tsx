@@ -1,10 +1,10 @@
 import React, { Suspense, useRef, useEffect, useState, useMemo } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
-import { OrbitControls, Grid, GizmoHelper, GizmoViewport, ContactShadows } from '@react-three/drei';
+import { OrbitControls, Grid, GizmoHelper, GizmoViewport, ContactShadows, Environment, Lightformer } from '@react-three/drei';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import MaterialSelector from '@/components/MaterialSelector';
-import { Material } from '@/types/materials';
+import { Material, MaterialPBR } from '@/types/materials';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 
 interface ModelProps {
   materialColor: string;
+  pbr?: MaterialPBR;
   geometry?: THREE.BufferGeometry;
   scale: number;
 }
@@ -24,20 +25,22 @@ interface Dimensions {
   depth: number;
 }
 
-const Model: React.FC<ModelProps> = ({ materialColor, geometry, scale }) => {
+const Model: React.FC<ModelProps> = ({ materialColor, pbr, geometry, scale }) => {
   if (!geometry) return null;
 
   const hasVertexColors = !!geometry.attributes.color;
+  const useVertex = hasVertexColors && !pbr;
 
   return (
     <group scale={[scale, scale, scale]}>
       <mesh castShadow receiveShadow>
         <primitive object={geometry} />
         <meshStandardMaterial
-          color={hasVertexColors ? '#ffffff' : materialColor}
-          vertexColors={hasVertexColors}
-          roughness={0.42}
-          metalness={0.12}
+          color={useVertex ? '#ffffff' : (pbr?.color ?? materialColor)}
+          vertexColors={useVertex}
+          roughness={pbr?.roughness ?? 0.42}
+          metalness={pbr?.metalness ?? 0.12}
+          envMapIntensity={pbr?.envIntensity ?? 1}
           side={THREE.DoubleSide}
         />
       </mesh>
@@ -232,7 +235,14 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
             <directionalLight position={[6, 9, 5]} intensity={2.2} castShadow />
             <directionalLight position={[-5, 3, -4]} intensity={0.8} color="#6a9bcc" />
             <directionalLight position={[0, -4, -6]} intensity={0.4} color="#ffd9b0" />
-            <Model materialColor={materialColor} geometry={normalizedGeometry} scale={scale} />
+            {/* Locally-built studio reflections (no network fetch) so metals read correctly */}
+            <Environment resolution={256} frames={1}>
+              <Lightformer form="rect" intensity={4} position={[0, 5, -3]} scale={[10, 3, 1]} />
+              <Lightformer form="rect" intensity={2} position={[-5, 1, 2]} rotation-y={Math.PI / 2} scale={[8, 2, 1]} />
+              <Lightformer form="rect" intensity={2} position={[5, 1, 2]} rotation-y={-Math.PI / 2} scale={[8, 2, 1]} />
+              <Lightformer form="ring" intensity={1.5} position={[0, 2, 5]} scale={3} />
+            </Environment>
+            <Model materialColor={materialColor} pbr={selectedMaterial?.pbr} geometry={normalizedGeometry} scale={scale} />
             <ContactShadows position={[0, -1.62 * scale, 0]} opacity={0.45} scale={9} blur={2.5} far={5} />
             <Grid
               position={[0, -1.65 * scale, 0]}
@@ -273,7 +283,7 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
         {/* Bottom material bar */}
         <div className="absolute bottom-0 left-0 right-0 z-10 px-3 py-3 md:px-5 md:py-4 bg-gradient-to-t from-viewport via-viewport/90 to-transparent pointer-events-none">
           <div className="pointer-events-auto">
-          <MaterialSelector selectedMaterial={selectedMaterial} onMaterialSelect={onMaterialSelect} />
+          <MaterialSelector materials={materials} selectedMaterial={selectedMaterial} onMaterialSelect={onMaterialSelect} />
           </div>
         </div>
       </div>
