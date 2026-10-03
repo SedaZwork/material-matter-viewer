@@ -272,7 +272,7 @@ const VesselGenerator = () => {
     const stlString = getSTLData();
     if (!stlString) return;
     sessionStorage.setItem('vesselSTL', stlString);
-    navigate('/', { state: { fromVessel: true } });
+    navigate('/', { state: { fromVessel: true, recipe: 'vessel' } });
   };
 
   // Slider row helper

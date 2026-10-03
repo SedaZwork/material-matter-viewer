@@ -3,8 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
-import { Material, PrintSettings } from '@/types/materials';
-import { materials } from '@/data/materials';
+import { Material, PrintSettings, RecipeScope } from '@/types/materials';
+import { materialsForRecipe } from '@/data/materials';
 import ThreeViewer from '@/components/ThreeViewer';
 import CostCalculator from '@/components/CostCalculator';
 import CheckoutButton from '@/components/CheckoutButton';
@@ -33,6 +33,8 @@ const Index = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
+  const [recipe, setRecipe] = useState<RecipeScope>('upload');
+  const recipeMaterials = materialsForRecipe(recipe);
   const [loadedGeometry, setLoadedGeometry] = useState<THREE.BufferGeometry | null>(null);
   const [selectedFabricatorId, setSelectedFabricatorId] = useState<string | null>(null);
   const [finalCost, setFinalCost] = useState(0);
@@ -114,6 +116,9 @@ const Index = () => {
   useEffect(() => {
     const fromVessel = location.state?.fromVessel;
     if (fromVessel) {
+      const r = location.state?.recipe as RecipeScope | undefined;
+      setRecipe(r ?? 'upload');
+      setSelectedMaterial(null);
       // Prefer in-memory geometry handoff (large meshes exceed sessionStorage quota)
       const memJson = (window as any).__transferGeometry;
       const jsonStr = memJson ? null : sessionStorage.getItem('transferGeometryJSON');
@@ -149,11 +154,7 @@ const Index = () => {
 
   const handleSignOut = async () => { await signOut(); navigate('/auth'); };
 
-  const getMaterialColor = () => {
-    if (!selectedMaterial) return '#888888';
-    const map: Record<string, string> = { pla: '#22c55e', petg: '#a855f7', abs: '#f59e0b', nylon: '#ec4899' };
-    return map[selectedMaterial.id] || '#888888';
-  };
+  const getMaterialColor = () => selectedMaterial?.pbr.color ?? '#888888';
 
   // --- Header ---
   const Header = () => (
@@ -219,7 +220,7 @@ const Index = () => {
             <p className="text-muted-foreground text-sm mb-8">
               Upload an STL file to preview, configure materials, and order prints
             </p>
-            <FileAnalysis onVolumeCalculated={handleVolumeCalculated} onModelLoaded={handleModelLoaded} />
+            <FileAnalysis onVolumeCalculated={handleVolumeCalculated} onModelLoaded={(g) => { setRecipe('upload'); handleModelLoaded(g); }} />
           </div>
         </main>
       </div>
@@ -245,7 +246,7 @@ const Index = () => {
               <ThreeViewer
                 materialColor={getMaterialColor()}
                 geometry={loadedGeometry}
-                materials={materials}
+                materials={recipeMaterials}
                 selectedMaterial={selectedMaterial}
                 onMaterialSelect={handleMaterialSelect}
                 scale={scale}
