@@ -144,35 +144,62 @@ const RingGenerator: React.FC = () => {
     refCode: string;
     sourceUrl: string;
   }): Promise<{ path: string; signedUrl: string } | null> => {
+    const BUCKET = '0K3D_Modelos_Generados';
+    let path: string | null = null;
+    let signedUrl: string | null = null;
+
+    // 1) Server-side mirror (fast for images, may fail for large models).
     try {
       const { data: mirror, error: mirrorErr } = await supabase.functions.invoke(
         'mirror-generated-model',
         { body: { sourceUrl, refCode: code, kind } },
       );
       if (mirrorErr || !mirror?.signedUrl) throw mirrorErr || new Error('Mirror failed');
-
-      if (user) {
-        const { error: insErr } = await supabase.from('generated_assets').insert({
-          user_id: user.id,
-          ref_code: code,
-          kind,
-          recipe: 'ring',
-          prompt,
-          storage_path: mirror.path,
-          source_url: sourceUrl,
-          metadata: {
-            providers: { image: 'fal/meta-muse-image', mesh: 'fal/tripo3d-h3.1-image-to-3d' },
-            ...(kind === 'model' ? { tripoSettings: tripo } : {}),
-            referenceImagePath: uploadedRefPath,
-          },
-        });
-        if (insErr) logger.error('Could not record generated asset', insErr);
-      }
-      return { path: mirror.path as string, signedUrl: mirror.signedUrl as string };
+      path = mirror.path;
+      signedUrl = mirror.signedUrl;
     } catch (err) {
-      logger.error('Persisting generated asset failed', err);
-      return null;
+      logger.error('Server mirror failed, uploading from browser', err);
     }
+
+    // 2) Fallback: download in the browser and upload straight to the user's folder.
+    if (!path && user) {
+      try {
+        const res = await fetch(sourceUrl);
+        if (!res.ok) throw new Error(`Download failed (${res.status})`);
+        const blob = await res.blob();
+        const isModel = kind === 'model';
+        const contentType = isModel ? 'model/gltf-binary' : blob.type || 'image/png';
+        const ext = isModel ? 'glb' : (contentType.split('/')[1] || 'png').split(';')[0];
+        const p = `${isModel ? 'models' : 'concepts'}/${user.id}/${code}.${ext}`;
+        const { error: upErr } = await supabase.storage.from(BUCKET).upload(p, blob, { contentType, upsert: true });
+        if (upErr) throw upErr;
+        const { data: s } = await supabase.storage.from(BUCKET).createSignedUrl(p, 60 * 60 * 24);
+        path = p;
+        signedUrl = s?.signedUrl ?? null;
+      } catch (err) {
+        logger.error('Browser upload failed', err);
+      }
+    }
+
+    // 3) Always record it in the library (falls back to the provider URL).
+    if (user) {
+      const { error: insErr } = await supabase.from('generated_assets').insert({
+        user_id: user.id,
+        ref_code: code,
+        kind,
+        recipe: 'ring',
+        prompt,
+        storage_path: path,
+        source_url: sourceUrl,
+        metadata: {
+          providers: { image: 'fal/meta-muse-image', mesh: 'fal/tripo3d-h3.1-image-to-3d' },
+          ...(kind === 'model' ? { tripoSettings: tripo } : {}),
+          referenceImagePath: uploadedRefPath,
+        },
+      });
+      if (insErr) logger.error('Could not record generated asset', insErr);
+    }
+    return path && signedUrl ? { path, signedUrl } : null;
   };
 
   const newRefCode = () =>
