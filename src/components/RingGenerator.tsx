@@ -269,7 +269,7 @@ const RingGenerator: React.FC = () => {
           setStage('image-ready');
           setStatusMsg('');
           // Persist the concept into the user's library (stored copy + signed URL).
-          const code = refCode ?? newRefCode();
+          const code = newRefCode(); // fresh code per concept so files never overwrite each other
           setRefCode(code);
           const stored = await persistAsset({
             kind: 'concept_image',

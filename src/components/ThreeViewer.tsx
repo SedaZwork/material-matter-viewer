@@ -29,7 +29,7 @@ const Model: React.FC<ModelProps> = ({ materialColor, pbr, geometry, scale }) =>
   if (!geometry) return null;
 
   const hasVertexColors = !!geometry.attributes.color;
-  const useVertex = hasVertexColors && !pbr;
+  const useVertex = hasVertexColors && (!pbr || pbr.metalness < 0.5);
 
   return (
     <group scale={[scale, scale, scale]}>
