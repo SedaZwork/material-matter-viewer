@@ -9,6 +9,8 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Focus, Maximize2 } from 'lucide-react';
+import CameraBackdrop from '@/components/CameraBackdrop';
+import { useCamera } from '@/hooks/useCamera';
 import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 
@@ -111,6 +113,7 @@ interface ThreeViewerProps {
   scale: number;
   onScaleChange: (scale: number) => void;
   dimensions?: Dimensions | null;
+  cameraBackground?: boolean;
 }
 
 const ThreeViewer: React.FC<ThreeViewerProps> = ({
@@ -122,7 +125,10 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
   scale,
   onScaleChange,
   dimensions: externalDimensions,
+  cameraBackground = false,
 }) => {
+  const { isActive: cameraActive } = useCamera();
+  const showCamera = cameraBackground && cameraActive;
   const [scaleInput, setScaleInput] = useState(scale.toString());
   const [resetSignal, setResetSignal] = useState(0);
   const viewerRef = useRef<HTMLDivElement>(null);
@@ -177,6 +183,7 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
   return (
     <div className="relative" ref={viewerRef}>
       <div className="w-full h-[560px] min-h-[420px] bg-viewport rounded-xl overflow-hidden relative border border-viewport-border shadow-elevated md:h-[640px]">
+        {cameraBackground && <CameraBackdrop />}
         {/* Top bar: dimensions + scale */}
         <div className="absolute top-0 left-0 right-0 z-10 flex items-start justify-between gap-3 p-3 md:p-5 pointer-events-none">
           {/* Scale */}
@@ -226,9 +233,9 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
         </div>
 
         {/* 3D Canvas */}
-        <Canvas shadows camera={{ position: [3.1, 2.3, 3.1], fov: 48, near: 0.1, far: 100 }} dpr={[1, 2]}>
-          <color attach="background" args={['#0d0d10']} />
-          <fog attach="fog" args={['#0d0d10', 10, 24]} />
+        <Canvas shadows gl={{ alpha: true }} camera={{ position: [3.1, 2.3, 3.1], fov: 48, near: 0.1, far: 100 }} dpr={[1, 2]}>
+          {!showCamera && <color attach="background" args={['#0d0d10']} />}
+          {!showCamera && <fog attach="fog" args={['#0d0d10', 10, 24]} />}
           <Suspense fallback={null}>
             <ambientLight intensity={0.55} />
             <hemisphereLight args={['#dfe7f2', '#1a1a20', 0.7]} />

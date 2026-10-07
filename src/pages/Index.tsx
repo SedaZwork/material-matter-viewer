@@ -252,6 +252,7 @@ const Index = () => {
                 scale={scale}
                 onScaleChange={setScale}
                 dimensions={dimensions}
+                cameraBackground={recipe !== 'upload'}
               />
             </div>
 

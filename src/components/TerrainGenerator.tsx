@@ -183,7 +183,8 @@ const TerrainGenerator = () => {
         rendererRef.current.setClearAlpha(1);
       }
     } else {
-      await startCamera();
+      const started = await startCamera();
+      if (!started) return;
       setArMode(true);
       if (sceneRef.current && rendererRef.current) {
         sceneRef.current.background = null;
