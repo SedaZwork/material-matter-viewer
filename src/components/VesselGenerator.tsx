@@ -64,7 +64,8 @@ const VesselGenerator = () => {
         rendererRef.current.setClearAlpha(1);
       }
     } else {
-      await startCamera();
+      const started = await startCamera();
+      if (!started) return;
       setArMode(true);
       // Make scene transparent for AR overlay
       if (sceneRef.current && rendererRef.current) {

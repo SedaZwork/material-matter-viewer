@@ -10,6 +10,7 @@ import NotFound from "./pages/NotFound";
 import VesselGenerator from "./components/VesselGenerator";
 import TerrainGenerator from "./components/TerrainGenerator";
 import RingGenerator from "./components/RingGenerator";
+import { CameraProvider } from "./hooks/useCamera";
 
 const queryClient = new QueryClient();
 
@@ -17,6 +18,7 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
+        <CameraProvider>
         <Toaster />
         <Sonner />
         <BrowserRouter>
@@ -31,6 +33,7 @@ const App = () => {
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
+        </CameraProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );
