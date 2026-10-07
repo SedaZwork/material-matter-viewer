@@ -252,10 +252,10 @@ const RecipeGallery: React.FC<RecipeGalleryProps> = ({ onEnterCustomizer }) => {
             </article>
           ))}
             </div>
-            <div className="absolute inset-y-0 right-0 flex flex-col items-center justify-center gap-2">
+            <div className="absolute inset-y-0 right-0 z-20 flex flex-col items-center justify-center gap-2" onPointerDown={event => event.stopPropagation()}>
               {recipes.map((recipe, index) => <button key={recipe.id} aria-label={`Show ${recipe.title}`} onClick={() => selectIndex(index)} className={cn('h-2 w-2 rounded-full border border-foreground/40 transition-all', index === activeIndex ? 'h-7 bg-foreground' : 'bg-background/40')} />)}
             </div>
-            <div className="absolute bottom-0 left-1/2 flex -translate-x-1/2 gap-2">
+            <div className="absolute bottom-0 left-1/2 z-20 flex -translate-x-1/2 gap-2" onPointerDown={event => event.stopPropagation()}>
               <Button variant="outline" size="icon" aria-label="Previous recipe" onClick={() => selectIndex(activeIndex - 1)} className="bg-background/60 backdrop-blur-xl"><ChevronLeft /></Button>
               <Button variant="outline" size="icon" aria-label="Next recipe" onClick={() => selectIndex(activeIndex + 1)} className="bg-background/60 backdrop-blur-xl"><ChevronRight /></Button>
             </div>
