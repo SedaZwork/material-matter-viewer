@@ -123,3 +123,14 @@
     -moz-osx-font-smoothing: grayscale;
   }
 }
+
+.orbital-ring {
+  --orbital-radius: -300px;
+  transform-origin: 50% 50% var(--orbital-radius);
+}
+
+@media (min-width: 768px) {
+  .orbital-ring {
+    --orbital-radius: -520px;
+  }
+}

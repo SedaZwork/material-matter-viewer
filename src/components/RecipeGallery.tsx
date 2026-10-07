@@ -164,12 +164,12 @@ const RecipeGallery: React.FC<RecipeGalleryProps> = ({ onEnterCustomizer }) => {
       <div className={cn('absolute inset-0 transition-colors duration-500', cameraActive ? 'bg-background/30' : 'bg-background/70')} />
 
       {/* Header */}
-      <header className="relative z-20 flex items-start justify-between px-5 py-5 md:px-10 md:py-8">
+      <header className="relative z-20 flex items-start justify-between gap-3 px-5 py-5 md:px-10 md:py-8">
         <div>
           <div className="text-xs uppercase text-foreground/60">
             0K3D · Generative Manufacturing
           </div>
-          <h1 className="mt-2 max-w-3xl text-2xl font-light leading-none text-foreground md:text-4xl lg:text-5xl">
+          <h1 className="mt-2 max-w-[280px] text-2xl font-light leading-none text-foreground sm:max-w-3xl md:text-4xl lg:text-5xl">
             Design anything. Manufacture everywhere.
           </h1>
         </div>
@@ -193,8 +193,8 @@ const RecipeGallery: React.FC<RecipeGalleryProps> = ({ onEnterCustomizer }) => {
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto grid min-h-[calc(100vh-116px)] max-w-[1500px] grid-cols-1 items-center gap-8 px-5 pb-10 lg:grid-cols-[minmax(280px,0.8fr)_minmax(480px,1.4fr)] lg:px-10">
-        <section className="order-2 rounded-lg border border-border/60 bg-background/60 p-6 shadow-elevated backdrop-blur-2xl lg:order-1 lg:max-w-md">
+      <main className="relative z-10 mx-auto grid min-h-[calc(100vh-116px)] max-w-[1500px] grid-cols-1 items-center gap-5 px-5 pb-10 lg:grid-cols-[minmax(280px,0.8fr)_minmax(480px,1.4fr)] lg:gap-8 lg:px-10">
+        <section className="order-2 z-20 rounded-lg border border-border/60 bg-background/90 p-6 shadow-elevated backdrop-blur-2xl lg:order-1 lg:max-w-md lg:bg-background/60">
           <div className="text-xs uppercase text-muted-foreground">Recipe {String(activeIndex + 1).padStart(2, '0')} / {String(recipes.length).padStart(2, '0')}</div>
           <h2 className="mt-4 text-3xl font-light text-foreground md:text-5xl">{recipes[activeIndex].title}</h2>
           <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{recipes[activeIndex].subtitle}</p>
@@ -208,9 +208,9 @@ const RecipeGallery: React.FC<RecipeGalleryProps> = ({ onEnterCustomizer }) => {
           {cameraError && <p role="status" className="mt-3 text-xs text-muted-foreground">{cameraError} Using the standard background.</p>}
         </section>
 
-        <section className="order-1 flex min-h-[470px] items-center justify-center lg:order-2 lg:min-h-[650px]" aria-label="Product recipes">
+        <section className="order-1 flex min-h-[390px] items-center justify-center overflow-hidden lg:order-2 lg:min-h-[650px] lg:overflow-visible" aria-label="Product recipes">
           <div
-            className="relative h-[440px] w-full max-w-[760px] touch-none select-none md:h-[620px]"
+            className="relative h-[390px] w-full max-w-[760px] touch-none select-none md:h-[620px]"
             style={{ perspective: '1400px' }}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
@@ -224,7 +224,7 @@ const RecipeGallery: React.FC<RecipeGalleryProps> = ({ onEnterCustomizer }) => {
             }}
             tabIndex={0}
           >
-            <div className="absolute inset-[8%_8%]" style={{ transformStyle: 'preserve-3d', transform: `rotateX(${angle}deg)`, transformOrigin: '50% 50% -520px' }}>
+            <div className="orbital-ring absolute inset-[12%_16%] md:inset-[8%_8%]" style={{ transformStyle: 'preserve-3d', transform: `rotateX(${angle}deg)` }}>
           {recipes.map((recipe, index) => (
             <article
               key={recipe.id}
@@ -234,7 +234,7 @@ const RecipeGallery: React.FC<RecipeGalleryProps> = ({ onEnterCustomizer }) => {
                 index === activeIndex ? 'opacity-100' : 'opacity-70',
                 !recipe.available && 'saturate-50'
               )}
-              style={{ transform: `rotateX(${index * step}deg) translateZ(-520px)`, backfaceVisibility: 'hidden' }}
+              style={{ transform: `rotateX(${index * step}deg) translateZ(var(--orbital-radius))`, backfaceVisibility: 'hidden' }}
             >
               <img
                 src={recipe.image}
