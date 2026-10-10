@@ -5,4 +5,4 @@
 - [x] Add camera-backed recipe viewer mode
 - [x] Add manifest-only home-screen installation support
 - [x] Validate fallback, navigation, viewer, desktop, and phone layouts
-- [ ] Center the homepage carousel axis, reduce and separate glass cards, and verify navigation and screen fit
+- [x] Center the homepage carousel axis, reduce and separate glass cards, and verify navigation and screen fit
