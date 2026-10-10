@@ -133,8 +133,9 @@
   left: 50%;
   width: 220px;
   height: 250px;
-  transform-origin: 50% 50% var(--orbital-radius);
+  transform-origin: 50% 50%;
   transform-style: preserve-3d;
+  pointer-events: none;
 }
 
 .recipe-orbit-stage {
@@ -143,6 +144,7 @@
 }
 
 .recipe-glass-card {
+  pointer-events: auto;
   border: 1px solid hsl(var(--card) / 0.85);
   border-radius: 28px;
   background: hsl(var(--background) / 0.25);
