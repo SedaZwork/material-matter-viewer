@@ -159,21 +159,16 @@ const RecipeGallery: React.FC<RecipeGalleryProps> = ({ onEnterCustomizer }) => {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-secondary">
+    <div className="recipe-home relative h-dvh overflow-hidden bg-secondary">
       <CameraBackdrop blurred />
       <div className={cn('absolute inset-0 transition-colors duration-500', cameraActive ? 'bg-background/30' : 'bg-background/70')} />
 
       {/* Header */}
-      <header className="relative z-20 flex items-start justify-between gap-3 px-5 py-5 md:px-10 md:py-8">
+      <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between gap-3 px-5 py-5 md:px-10 md:py-8">
         <div>
-          <div className="text-xs uppercase text-foreground/60">
-            0K3D · Generative Manufacturing
-          </div>
-          <h1 className="mt-2 max-w-[280px] text-2xl font-light leading-none text-foreground sm:max-w-3xl md:text-4xl lg:text-5xl">
-            Design anything. Manufacture everywhere.
-          </h1>
+          <h1 className="text-3xl font-medium leading-none text-foreground">0K3D.print</h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="pointer-events-auto flex items-center gap-2">
           <Button
             variant="outline"
             size="icon"
@@ -193,25 +188,10 @@ const RecipeGallery: React.FC<RecipeGalleryProps> = ({ onEnterCustomizer }) => {
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto grid min-h-[calc(100vh-116px)] max-w-[1500px] grid-cols-1 items-center gap-5 px-5 pb-10 lg:grid-cols-[minmax(280px,0.8fr)_minmax(480px,1.4fr)] lg:gap-8 lg:px-10">
-        <section className="order-2 z-20 rounded-lg border border-border/60 bg-background/90 p-6 shadow-elevated backdrop-blur-2xl lg:order-1 lg:max-w-md lg:bg-background/60">
-          <div className="text-xs uppercase text-muted-foreground">Recipe {String(activeIndex + 1).padStart(2, '0')} / {String(recipes.length).padStart(2, '0')}</div>
-          <h2 className="mt-4 text-3xl font-light text-foreground md:text-5xl">{recipes[activeIndex].title}</h2>
-          <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{recipes[activeIndex].subtitle}</p>
-          <div className="mt-5 flex flex-wrap gap-2">
-            {recipes[activeIndex].tags.map(tag => <span key={tag} className="rounded-md border border-border/70 bg-background/50 px-2.5 py-1 text-xs text-foreground/70">{tag}</span>)}
-          </div>
-          <Button className="mt-7 w-full" disabled={!recipes[activeIndex].available} onClick={() => handleRecipeClick(recipes[activeIndex])}>
-            {recipes[activeIndex].available ? 'Start creating' : 'Coming soon'}
-            {recipes[activeIndex].available && <ArrowRight />}
-          </Button>
-          {cameraError && <p role="status" className="mt-3 text-xs text-muted-foreground">{cameraError} Using the standard background.</p>}
-        </section>
-
-        <section className="order-1 flex min-h-[390px] items-center justify-center overflow-hidden lg:order-2 lg:min-h-[650px] lg:overflow-visible" aria-label="Product recipes">
+      <main className="absolute inset-0 z-10">
+        <section className="absolute inset-0 overflow-hidden" aria-label="Product recipes">
           <div
-            className="relative h-[390px] w-full max-w-[760px] touch-none select-none md:h-[620px]"
-            style={{ perspective: '1400px' }}
+            className="recipe-orbit-stage absolute inset-0 touch-none select-none"
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={finishDrag}
@@ -224,14 +204,14 @@ const RecipeGallery: React.FC<RecipeGalleryProps> = ({ onEnterCustomizer }) => {
             }}
             tabIndex={0}
           >
-            <div className="orbital-ring absolute inset-[12%_16%] md:inset-[8%_8%]" style={{ transformStyle: 'preserve-3d', transform: `rotateX(${angle}deg)` }}>
+            <div className="orbital-ring" style={{ transform: `translate(-50%, -50%) rotateX(${angle}deg)` }}>
           {recipes.map((recipe, index) => (
             <article
               key={recipe.id}
               onClick={(event) => { event.stopPropagation(); index === activeIndex ? handleRecipeClick(recipe) : selectIndex(index); }}
               className={cn(
-                'group absolute inset-0 cursor-pointer overflow-hidden rounded-lg border border-border/60 bg-card shadow-elevated transition-opacity duration-300',
-                index === activeIndex ? 'opacity-100' : 'opacity-70',
+                'recipe-glass-card group absolute inset-0 cursor-pointer overflow-hidden transition-opacity duration-300',
+                index === activeIndex ? 'opacity-100' : 'opacity-80',
                 !recipe.available && 'saturate-50'
               )}
               style={{ transform: `rotateX(${index * step}deg) translateZ(var(--orbital-radius))`, backfaceVisibility: 'hidden' }}
@@ -242,26 +222,39 @@ const RecipeGallery: React.FC<RecipeGalleryProps> = ({ onEnterCustomizer }) => {
                 loading="lazy"
                 width={640}
                 height={800}
-                className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                className="absolute inset-0 h-full w-full object-cover"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-viewport/90 via-transparent to-viewport/10" />
-              <div className="absolute inset-x-0 bottom-0 p-5 text-viewport-foreground">
-                <div className="text-xs uppercase text-viewport-muted">{recipe.available ? 'Available' : 'Coming soon'}</div>
-                <div className="mt-1 text-2xl font-medium">{recipe.title}</div>
+              <div className="recipe-card-wash absolute inset-0" />
+              <h2 className="absolute inset-x-0 top-0 p-4 text-xl font-medium leading-tight text-foreground">{recipe.title}</h2>
+              <div className="absolute inset-x-0 bottom-0 p-4 text-foreground">
+                <p className="mb-3 text-xs leading-snug">{recipe.subtitle}</p>
+                <Button
+                  variant="outline"
+                  className="recipe-glass-action h-8 w-full rounded-full"
+                  tabIndex={index === activeIndex ? 0 : -1}
+                  disabled={!recipe.available}
+                  onPointerDown={event => event.stopPropagation()}
+                  onClick={event => { event.stopPropagation(); handleRecipeClick(recipe); }}
+                >
+                  {recipe.available ? 'Start creating' : 'Coming soon'}
+                  {recipe.available && <ArrowRight />}
+                </Button>
               </div>
             </article>
           ))}
             </div>
-            <div className="absolute inset-y-0 right-0 z-20 flex flex-col items-center justify-center gap-2" onPointerDown={event => event.stopPropagation()}>
-              {recipes.map((recipe, index) => <button key={recipe.id} aria-label={`Show ${recipe.title}`} onPointerDown={event => { event.stopPropagation(); selectIndex(index); }} className={cn('h-2 w-2 rounded-full border border-foreground/40 transition-all', index === activeIndex ? 'h-7 bg-foreground' : 'bg-background/40')} />)}
+            <div className="absolute inset-y-0 right-3 z-20 flex flex-col items-center justify-center gap-1 sm:right-8" onPointerDown={event => event.stopPropagation()}>
+              {recipes.map((recipe, index) => <Button variant="ghost" size="icon" key={recipe.id} aria-label={`Show ${recipe.title}`} aria-pressed={index === activeIndex} onClick={() => selectIndex(index)} className="h-6 w-6 rounded-full"><span className={cn('w-1.5 rounded-full border border-foreground/40 transition-all', index === activeIndex ? 'h-5 bg-foreground' : 'h-1.5 bg-background/40')} /></Button>)}
             </div>
-            <div className="absolute bottom-0 left-1/2 z-20 flex -translate-x-1/2 gap-2" onPointerDown={event => event.stopPropagation()}>
+            <div className="recipe-orbit-controls absolute bottom-5 left-1/2 z-20 flex -translate-x-1/2 items-center gap-4 rounded-full border border-border/60 bg-background/70 px-4 py-2 backdrop-blur-xl" onPointerDown={event => event.stopPropagation()}>
               <Button variant="outline" size="icon" aria-label="Previous recipe" onPointerDown={event => { event.stopPropagation(); selectIndex(activeIndex - 1); }} className="bg-background/60 backdrop-blur-xl"><ChevronLeft /></Button>
+              <span className="text-xs tabular-nums text-muted-foreground" aria-live="polite">{String(activeIndex + 1).padStart(2, '0')} / {String(recipes.length).padStart(2, '0')}</span>
               <Button variant="outline" size="icon" aria-label="Next recipe" onPointerDown={event => { event.stopPropagation(); selectIndex(activeIndex + 1); }} className="bg-background/60 backdrop-blur-xl"><ChevronRight /></Button>
             </div>
           </div>
         </section>
       </main>
+      {cameraError && <p role="status" className="pointer-events-none absolute bottom-24 inset-x-5 z-30 mx-auto max-w-sm rounded-md bg-background/90 p-2 text-center text-xs text-muted-foreground">{cameraError} Using the standard background.</p>}
 
       {welcomeOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 p-5 backdrop-blur-md">
