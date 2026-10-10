@@ -58,6 +58,8 @@
     --shadow-glow: 0 0 30px hsl(220 80% 50% / 0.15);
     --shadow-card: 0 1px 3px hsl(220 15% 15% / 0.06), 0 4px 12px hsl(220 15% 15% / 0.04);
     --shadow-elevated: 0 4px 24px hsl(220 15% 15% / 0.08);
+    --recipe-card-wash: linear-gradient(180deg, hsl(var(--background) / 0.8) 0%, hsl(var(--background) / 0.03) 30%, hsl(var(--background) / 0.2) 46%, hsl(var(--background) / 0.94) 76%, hsl(var(--background)) 100%);
+    --shadow-recipe-glass: inset 0 0 0 1px hsl(var(--card) / 0.7), 0 8px 24px hsl(var(--foreground) / 0.08);
 
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
@@ -125,12 +127,42 @@
 }
 
 .orbital-ring {
-  --orbital-radius: -300px;
+  --orbital-radius: -330px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 220px;
+  height: 250px;
   transform-origin: 50% 50% var(--orbital-radius);
+  transform-style: preserve-3d;
+}
+
+.recipe-orbit-stage {
+  perspective: 1400px;
+  perspective-origin: 50% 50%;
+}
+
+.recipe-glass-card {
+  border: 1px solid hsl(var(--card) / 0.85);
+  border-radius: 28px;
+  background: hsl(var(--background) / 0.25);
+  box-shadow: var(--shadow-recipe-glass);
+  backdrop-filter: blur(18px);
+}
+
+.recipe-card-wash {
+  background: var(--recipe-card-wash);
+}
+
+.recipe-glass-action {
+  background: hsl(var(--card) / 0.65);
+  box-shadow: var(--shadow-card);
 }
 
 @media (min-width: 768px) {
   .orbital-ring {
-    --orbital-radius: -520px;
+    --orbital-radius: -390px;
+    width: 260px;
+    height: 280px;
   }
 }
