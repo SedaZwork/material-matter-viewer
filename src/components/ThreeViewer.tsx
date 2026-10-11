@@ -8,14 +8,33 @@ import { Material, MaterialPBR } from '@/types/materials';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Focus, Maximize2, Hand, ScanLine, X } from 'lucide-react';
+import { Focus, Maximize2, Hand, ScanLine, X, Pause, Play, RotateCcw, MapPin, Trash2, SlidersHorizontal } from 'lucide-react';
 import CameraBackdrop from '@/components/CameraBackdrop';
 import { useCamera } from '@/hooks/useCamera';
 import { useViewerTracking } from '@/hooks/useViewerTracking';
-import TrackedModel from '@/components/TrackedModel';
+import TrackedModel, { DEFAULT_CALIBRATION, type FingerCalibration } from '@/components/TrackedModel';
+import LibraryModelPicker, { type LibraryModel } from '@/components/LibraryModelPicker';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
+
+const normalizedCache = new WeakMap<THREE.BufferGeometry, THREE.BufferGeometry>();
+/** Center and fit a geometry to `size` viewer units (cached per source geometry). */
+function normalize(geometry: THREE.BufferGeometry, size: number) {
+  const cached = normalizedCache.get(geometry);
+  if (cached) return cached;
+  const clone = geometry.clone();
+  clone.computeBoundingBox();
+  const box = clone.boundingBox!;
+  const center = box.getCenter(new THREE.Vector3());
+  const max = Math.max(...box.getSize(new THREE.Vector3()).toArray()) || 1;
+  clone.translate(-center.x, -center.y, -center.z);
+  clone.scale(size / max, size / max, size / max);
+  normalizedCache.set(geometry, clone);
+  return clone;
+}
 
 interface ModelProps {
   materialColor: string;
@@ -137,6 +156,11 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
   const trackingVideo = useRef<HTMLVideoElement>(null);
   const [finger, setFinger] = useState(13);
   const [axis, setAxis] = useState<'x' | 'y' | 'z'>('y');
+  const [paused, setPaused] = useState(false);
+  const [placeSignal, setPlaceSignal] = useState(0);
+  const [calibration, setCalibration] = useState<FingerCalibration>(DEFAULT_CALIBRATION);
+  const [extras, setExtras] = useState<LibraryModel[]>([]);
+  const panelButton = 'bg-viewport-panel text-viewport-foreground border-viewport-border hover:bg-viewport-control hover:text-viewport-foreground';
   const activeTracking = tracking.mode !== 'off';
   const showCamera = (cameraBackground && cameraActive) || activeTracking;
   const [scaleInput, setScaleInput] = useState(scale.toString());
@@ -244,10 +268,21 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
         </div>
 
         <div className="absolute top-20 inset-x-3 z-20 flex flex-wrap items-center gap-2 md:inset-x-5">
-          <Button variant="outline" disabled={tracking.busy} onClick={() => activeTracking ? void tracking.stop() : void tracking.start(recipe === 'ring' ? 'hand' : 'plane', viewerRef.current)} className="bg-viewport-panel text-viewport-foreground border-viewport-border hover:bg-viewport-control hover:text-viewport-foreground">
+          <Button variant="outline" disabled={tracking.busy} onClick={() => { setPaused(false); if (activeTracking) void tracking.stop(); else void tracking.start(recipe === 'ring' ? 'hand' : 'plane', viewerRef.current); }} className={panelButton}>
             {activeTracking ? <X /> : recipe === 'ring' ? <Hand /> : <ScanLine />}
             {activeTracking ? 'Exit tracking' : recipe === 'ring' ? 'Try on finger' : 'Place on surface'}
           </Button>
+          {activeTracking && <>
+            <Button variant="outline" onClick={() => setPaused(value => !value)} className={panelButton}>
+              {paused ? <Play /> : <Pause />}{paused ? 'Resume' : 'Pause'}
+            </Button>
+            <Button variant="outline" onClick={() => { setPaused(false); setResetSignal(value => value + 1); }} className={panelButton}>
+              <RotateCcw />Reset tracking
+            </Button>
+          </>}
+          {tracking.mode === 'plane' && <Button onClick={() => { setPaused(false); setPlaceSignal(value => value + 1); }}><MapPin />Place object</Button>}
+          <LibraryModelPicker className={panelButton} onAdd={model => setExtras(list => [...list.filter(item => item.id !== model.id), model])} />
+          {extras.length > 0 && <Button variant="outline" onClick={() => setExtras([])} className={panelButton}><Trash2 />Clear added ({extras.length})</Button>}
           {tracking.mode === 'hand' && <>
             <Select value={String(finger)} onValueChange={value => setFinger(Number(value))}>
               <SelectTrigger aria-label="Tracked finger" className="w-32 bg-viewport-panel text-viewport-foreground border-viewport-border"><SelectValue /></SelectTrigger>
@@ -258,6 +293,24 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
               <SelectContent>{['x', 'y', 'z'].map(value => <SelectItem key={value} value={value}>Axis {value.toUpperCase()}</SelectItem>)}</SelectContent>
             </Select>
           </>}
+          {recipe === 'ring' && (
+            <Popover>
+              <PopoverTrigger asChild><Button variant="outline" className={panelButton}><SlidersHorizontal />Finger fit</Button></PopoverTrigger>
+              <PopoverContent className="w-72 space-y-4">
+                <p className="text-sm font-medium">Adjust how the ring sits on your finger</p>
+                {([['size', 'Ring size on finger', 0.6, 1.6, 0.01, `${Math.round(calibration.size * 100)}%`],
+                   ['slide', 'Position along finger', 0, 1, 0.01, `${Math.round(calibration.slide * 100)}%`],
+                   ['twist', 'Rotation', -180, 180, 1, `${calibration.twist}°`]] as const).map(([key, label, min, max, step, shown]) => (
+                  <div key={key} className="space-y-2">
+                    <div className="flex justify-between text-xs"><span>{label}</span><span className="text-muted-foreground">{shown}</span></div>
+                    <Slider aria-label={label} min={min} max={max} step={step} value={[calibration[key]]} onValueChange={([value]) => setCalibration(current => ({ ...current, [key]: value }))} />
+                  </div>
+                ))}
+                <p className="text-xs text-muted-foreground">Preview only — your order size doesn't change.</p>
+                <Button variant="outline" size="sm" onClick={() => setCalibration(DEFAULT_CALIBRATION)}>Reset fit</Button>
+              </PopoverContent>
+            </Popover>
+          )}
           {tracking.status && <p role="status" className="basis-full max-w-md rounded-md bg-viewport-panel px-3 py-2 text-xs text-viewport-foreground">{tracking.status}</p>}
         </div>
 
@@ -278,8 +331,12 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
               <Lightformer form="rect" intensity={2} position={[5, 1, 2]} rotation-y={-Math.PI / 2} scale={[8, 2, 1]} />
               <Lightformer form="ring" intensity={1.5} position={[0, 2, 5]} scale={3} />
             </Environment>
-            {activeTracking ? <TrackedModel geometry={geometry} pbr={selectedMaterial?.pbr} color={materialColor} scale={scale} mode={tracking.mode} video={trackingVideo} plane={tracking.plane} finger={finger} axis={axis} reset={resetSignal} onStatus={tracking.setStatus} /> : <>
+            {activeTracking ? <>
+              <TrackedModel geometry={geometry} pbr={selectedMaterial?.pbr} color={materialColor} scale={scale} mode={tracking.mode} video={trackingVideo} plane={tracking.plane} finger={finger} axis={axis} reset={resetSignal} onStatus={tracking.setStatus} paused={paused} place={placeSignal} calibration={calibration} />
+              {tracking.mode === 'plane' && extras.map((extra, index) => <TrackedModel key={extra.id} quiet geometry={extra.geometry} pbr={selectedMaterial?.pbr} color={materialColor} scale={1} mode="plane" video={trackingVideo} plane={tracking.plane} finger={finger} axis={axis} reset={resetSignal} onStatus={tracking.setStatus} paused={paused} place={placeSignal} offset={0.12 * (index + 1)} />)}
+            </> : <>
             <Model materialColor={materialColor} pbr={selectedMaterial?.pbr} geometry={normalizedGeometry} scale={scale} />
+            {extras.map((extra, index) => <group key={extra.id} position={[2.6 * (index + 1), 0, 0]}><Model materialColor={materialColor} pbr={selectedMaterial?.pbr} geometry={normalize(extra.geometry, 2)} scale={1} /></group>)}
             <ContactShadows position={[0, -1.62 * scale, 0]} opacity={0.45} scale={9} blur={2.5} far={5} />
             <Grid
               position={[0, -1.65 * scale, 0]}
