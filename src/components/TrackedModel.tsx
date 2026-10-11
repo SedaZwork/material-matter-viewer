@@ -73,6 +73,7 @@ export default function TrackedModel({ geometry, pbr, color, scale, mode, video,
     if (mode === 'plane') {
       const tracking = plane.current;
       if (!tracking || !frame) { object.visible = false; return; }
+      if (paused) return;
       if (!locked.current) {
         const pose = frame.getHitTestResults(tracking.source)[0]?.getPose(tracking.space);
         if (!pose) { hits.current = 0; object.visible = false; report('Searching for a horizontal surface…'); return; }
@@ -80,15 +81,17 @@ export default function TrackedModel({ geometry, pbr, color, scale, mode, video,
         math.matrix.decompose(math.position, math.rotation, math.scale);
         math.basis.set(0, 1, 0).applyQuaternion(math.rotation);
         if (math.basis.y < 0.95) { hits.current = 0; object.visible = false; report('Searching for a horizontal surface…'); return; }
+        math.position.add(math.side.set(offset, 0, 0).applyQuaternion(math.rotation));
         // Ignore transient hits; then hold a world-space pose instead of sliding with the camera ray.
         if (hits.current > 0 && object.position.distanceTo(math.position) > 0.03) hits.current = 0;
         object.position.copy(math.position); object.quaternion.copy(math.rotation);
         hits.current += 1;
-        if (hits.current >= 12) { locked.current = true; report('Placed on surface'); }
+        if (forcePlace.current || hits.current >= 12) { locked.current = true; forcePlace.current = false; report('Placed on surface'); }
       }
       object.visible = locked.current; object.scale.setScalar(scale);
       return;
     }
+    if (paused) return;
     const source = video.current;
     if (!detector.current || !source || source.readyState < 2 || !source.videoWidth) { object.visible = false; return; }
     const now = performance.now();
@@ -109,13 +112,15 @@ export default function TrackedModel({ geometry, pbr, color, scale, mode, video,
       };
       atDepth(a, math.a); atDepth(b, math.b);
       const length = math.a.distanceTo(math.b);
-      math.position.copy(math.a).lerp(math.b, 0.28);
+      math.position.copy(math.a).lerp(math.b, calibration.slide);
       math.direction.subVectors(math.b, math.a).normalize();
       math.basis.set(axis === 'x' ? 1 : 0, axis === 'y' ? 1 : 0, axis === 'z' ? 1 : 0);
       math.rotation.setFromUnitVectors(math.basis, math.direction);
+      math.twist.setFromAxisAngle(math.direction, THREE.MathUtils.degToRad(calibration.twist));
+      math.rotation.premultiply(math.twist);
       const bounds = shape.boundingBox?.getSize(math.scale);
       const diameter = bounds ? Math.max(bounds.x, bounds.y, bounds.z) : 1;
-      const fit = Math.max(0.00001, length * 0.7 / diameter) * scale;
+      const fit = Math.max(0.00001, length * 0.7 * calibration.size / diameter) * scale;
       if (!object.visible) { object.position.copy(math.position); object.quaternion.copy(math.rotation); }
       const blend = 1 - Math.exp(-18 * Math.min(delta * 4, 0.1));
       object.position.lerp(math.position, blend); object.quaternion.slerp(math.rotation, blend);
