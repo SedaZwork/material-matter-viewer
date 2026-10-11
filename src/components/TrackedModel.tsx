@@ -20,9 +20,17 @@ interface Props {
   axis: 'x' | 'y' | 'z';
   reset: number;
   onStatus: (status: string) => void;
+  paused?: boolean;
+  place?: number;
+  calibration?: FingerCalibration;
+  offset?: number;
+  quiet?: boolean;
 }
 
-export default function TrackedModel({ geometry, pbr, color, scale, mode, video, plane, finger, axis, reset, onStatus }: Props) {
+export interface FingerCalibration { size: number; slide: number; twist: number }
+export const DEFAULT_CALIBRATION: FingerCalibration = { size: 1, slide: 0.28, twist: 0 };
+
+export default function TrackedModel({ geometry, pbr, color, scale, mode, video, plane, finger, axis, reset, onStatus, paused = false, place = 0, calibration = DEFAULT_CALIBRATION, offset = 0, quiet = false }: Props) {
   const group = useRef<THREE.Group>(null);
   const detector = useRef<HandLandmarker | null>(null);
   const lastFrame = useRef(-1);
@@ -30,18 +38,21 @@ export default function TrackedModel({ geometry, pbr, color, scale, mode, video,
   const lastStatus = useRef('');
   const locked = useRef(false);
   const hits = useRef(0);
+  const forcePlace = useRef(false);
   const { camera, size } = useThree();
   const shape = useMemo(() => {
     if (mode === 'plane') return groundGeometry(geometry);
     const copy = geometry.clone(); copy.center(); copy.computeBoundingBox(); return copy;
   }, [geometry, mode]);
-  const math = useMemo(() => ({ matrix: new THREE.Matrix4(), position: new THREE.Vector3(), rotation: new THREE.Quaternion(), scale: new THREE.Vector3(), a: new THREE.Vector3(), b: new THREE.Vector3(), direction: new THREE.Vector3(), basis: new THREE.Vector3() }), []);
-  const report = (text: string) => { if (lastStatus.current !== text) { lastStatus.current = text; onStatus(text); } };
+  const math = useMemo(() => ({ matrix: new THREE.Matrix4(), position: new THREE.Vector3(), rotation: new THREE.Quaternion(), scale: new THREE.Vector3(), a: new THREE.Vector3(), b: new THREE.Vector3(), direction: new THREE.Vector3(), basis: new THREE.Vector3(), twist: new THREE.Quaternion(), side: new THREE.Vector3() }), []);
+  const report = (text: string) => { if (quiet) return; if (lastStatus.current !== text) { lastStatus.current = text; onStatus(text); } };
 
   useEffect(() => () => shape.dispose(), [shape]);
   useEffect(() => { locked.current = false; hits.current = 0; }, [reset, mode]);
+  useEffect(() => { if (place) { locked.current = false; hits.current = 0; forcePlace.current = true; } }, [place]);
+  useEffect(() => { if (!quiet && mode !== 'off') onStatus(paused ? 'Tracking paused' : 'Tracking resumed'); lastStatus.current = ''; }, [paused]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (mode !== 'hand') return;
+    if (mode !== 'hand' || quiet) return;
     let cancelled = false;
     void HandLandmarker.createFromOptions({
       wasmLoaderPath: '/tracking/vision_wasm_internal.js', wasmBinaryPath: wasmAsset.url,
