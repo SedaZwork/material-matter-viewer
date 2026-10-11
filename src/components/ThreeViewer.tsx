@@ -8,9 +8,12 @@ import { Material, MaterialPBR } from '@/types/materials';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Focus, Maximize2 } from 'lucide-react';
+import { Focus, Maximize2, Hand, ScanLine, X } from 'lucide-react';
 import CameraBackdrop from '@/components/CameraBackdrop';
 import { useCamera } from '@/hooks/useCamera';
+import { useViewerTracking } from '@/hooks/useViewerTracking';
+import TrackedModel from '@/components/TrackedModel';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 
@@ -114,6 +117,7 @@ interface ThreeViewerProps {
   onScaleChange: (scale: number) => void;
   dimensions?: Dimensions | null;
   cameraBackground?: boolean;
+  recipe?: string;
 }
 
 const ThreeViewer: React.FC<ThreeViewerProps> = ({
@@ -126,9 +130,15 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
   onScaleChange,
   dimensions: externalDimensions,
   cameraBackground = false,
+  recipe = 'upload',
 }) => {
-  const { isActive: cameraActive } = useCamera();
-  const showCamera = cameraBackground && cameraActive;
+  const { isActive: cameraActive, videoRef: registerVideo } = useCamera();
+  const tracking = useViewerTracking();
+  const trackingVideo = useRef<HTMLVideoElement>(null);
+  const [finger, setFinger] = useState(13);
+  const [axis, setAxis] = useState<'x' | 'y' | 'z'>('y');
+  const activeTracking = tracking.mode !== 'off';
+  const showCamera = (cameraBackground && cameraActive) || activeTracking;
   const [scaleInput, setScaleInput] = useState(scale.toString());
   const [resetSignal, setResetSignal] = useState(0);
   const viewerRef = useRef<HTMLDivElement>(null);
@@ -181,9 +191,10 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
   };
 
   return (
-    <div className="relative" ref={viewerRef}>
-      <div className="w-full h-[560px] min-h-[420px] bg-viewport rounded-xl overflow-hidden relative border border-viewport-border shadow-elevated md:h-[640px]">
-        {cameraBackground && <CameraBackdrop />}
+    <div className={cn('relative', activeTracking && 'fixed inset-0 z-50 bg-viewport')} ref={viewerRef}>
+      <div className={cn('w-full min-h-[420px] bg-viewport overflow-hidden relative border border-viewport-border shadow-elevated', activeTracking ? 'h-dvh' : 'h-[560px] rounded-xl md:h-[640px]')}>
+        {!activeTracking && cameraBackground && <CameraBackdrop />}
+        {tracking.mode === 'hand' && <video ref={element => { trackingVideo.current = element; registerVideo(element); }} playsInline muted aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" />}
         {/* Top bar: dimensions + scale */}
         <div className="absolute top-0 left-0 right-0 z-10 flex items-start justify-between gap-3 p-3 md:p-5 pointer-events-none">
           {/* Scale */}
@@ -214,11 +225,11 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
             <div className="flex gap-2 pointer-events-auto">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button aria-label="Center model" variant="ghost" size="icon" onClick={() => setResetSignal(value => value + 1)} className="h-9 w-9 bg-viewport-panel text-viewport-foreground border border-viewport-border hover:bg-viewport-control hover:text-viewport-foreground">
+                  <Button aria-label={activeTracking ? 'Reset placement' : 'Center model'} variant="ghost" size="icon" onClick={() => setResetSignal(value => value + 1)} className="h-9 w-9 bg-viewport-panel text-viewport-foreground border border-viewport-border hover:bg-viewport-control hover:text-viewport-foreground">
                     <Focus className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Center model</TooltipContent>
+                <TooltipContent>{activeTracking ? 'Reset placement' : 'Center model'}</TooltipContent>
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -232,8 +243,26 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
           </TooltipProvider>
         </div>
 
+        <div className="absolute top-20 inset-x-3 z-20 flex flex-wrap items-center gap-2 md:inset-x-5">
+          <Button variant="outline" disabled={tracking.busy} onClick={() => activeTracking ? void tracking.stop() : void tracking.start(recipe === 'ring' ? 'hand' : 'plane', viewerRef.current)} className="bg-viewport-panel text-viewport-foreground border-viewport-border hover:bg-viewport-control hover:text-viewport-foreground">
+            {activeTracking ? <X /> : recipe === 'ring' ? <Hand /> : <ScanLine />}
+            {activeTracking ? 'Exit tracking' : recipe === 'ring' ? 'Try on finger' : 'Place on surface'}
+          </Button>
+          {tracking.mode === 'hand' && <>
+            <Select value={String(finger)} onValueChange={value => setFinger(Number(value))}>
+              <SelectTrigger aria-label="Tracked finger" className="w-32 bg-viewport-panel text-viewport-foreground border-viewport-border"><SelectValue /></SelectTrigger>
+              <SelectContent>{[[5, 'Index'], [9, 'Middle'], [13, 'Ring'], [17, 'Little']].map(([id, name]) => <SelectItem key={id} value={String(id)}>{name} finger</SelectItem>)}</SelectContent>
+            </Select>
+            <Select value={axis} onValueChange={value => { if (value === 'x' || value === 'y' || value === 'z') setAxis(value); }}>
+              <SelectTrigger aria-label="Ring hole axis" className="w-24 bg-viewport-panel text-viewport-foreground border-viewport-border"><SelectValue /></SelectTrigger>
+              <SelectContent>{['x', 'y', 'z'].map(value => <SelectItem key={value} value={value}>Axis {value.toUpperCase()}</SelectItem>)}</SelectContent>
+            </Select>
+          </>}
+          {tracking.status && <p role="status" className="basis-full max-w-md rounded-md bg-viewport-panel px-3 py-2 text-xs text-viewport-foreground">{tracking.status}</p>}
+        </div>
+
         {/* 3D Canvas */}
-        <Canvas shadows gl={{ alpha: true }} camera={{ position: [3.1, 2.3, 3.1], fov: 48, near: 0.1, far: 100 }} dpr={[1, 2]}>
+        <Canvas shadows gl={{ alpha: true }} onCreated={({ gl }) => { tracking.renderer.current = gl; }} camera={{ position: [3.1, 2.3, 3.1], fov: 48, near: 0.01, far: 100 }} dpr={[1, 2]}>
           {!showCamera && <color attach="background" args={['#0d0d10']} />}
           {!showCamera && <fog attach="fog" args={['#0d0d10', 10, 24]} />}
           <Suspense fallback={null}>
@@ -249,6 +278,7 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
               <Lightformer form="rect" intensity={2} position={[5, 1, 2]} rotation-y={-Math.PI / 2} scale={[8, 2, 1]} />
               <Lightformer form="ring" intensity={1.5} position={[0, 2, 5]} scale={3} />
             </Environment>
+            {activeTracking ? <TrackedModel geometry={geometry} pbr={selectedMaterial?.pbr} color={materialColor} scale={scale} mode={tracking.mode} video={trackingVideo} plane={tracking.plane} finger={finger} axis={axis} reset={resetSignal} onStatus={tracking.setStatus} /> : <>
             <Model materialColor={materialColor} pbr={selectedMaterial?.pbr} geometry={normalizedGeometry} scale={scale} />
             <ContactShadows position={[0, -1.62 * scale, 0]} opacity={0.45} scale={9} blur={2.5} far={5} />
             <Grid
@@ -281,11 +311,12 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
             <GizmoHelper alignment="bottom-right" margin={[76, 118]}>
               <GizmoViewport axisColors={['#c86a6a', '#788c5d', '#6a9bcc']} labelColor="#f5f3ee" />
             </GizmoHelper>
+            </>}
           </Suspense>
         </Canvas>
 
         {/* Navigation instructions overlay */}
-        <NavigationOverlay />
+        {!activeTracking && <NavigationOverlay />}
 
         {/* Bottom material bar */}
         <div className="absolute bottom-0 left-0 right-0 z-10 px-3 py-3 md:px-5 md:py-4 bg-gradient-to-t from-viewport via-viewport/90 to-transparent pointer-events-none">
