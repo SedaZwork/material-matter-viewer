@@ -8,4 +8,4 @@
 - [x] Center the homepage carousel axis, reduce and separate glass cards, and verify navigation and screen fit
 - [x] Add real WebXR horizontal-surface snapping with safe unsupported-device fallback
 - [x] Add on-device ring-finger tracking without changing fabrication size
-- [x] Verify tracking controls, tracker loading, exit flow, placement math, and normal viewer behavior (physical AR/finger accuracy requires device testing)
+- [x] Verify tracking controls, tracker loading, exit flow, placement math, and normal viewer behavior (physical AR/finger accuracy requires device testing)- [x] Add finger-fit calibration, pause/resume/reset tracking, place-object, and add-from-library viewer controls
