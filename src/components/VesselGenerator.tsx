@@ -1,351 +1,453 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { STLExporter } from 'three/examples/jsm/exporters/STLExporter.js';
-import { ArrowLeft, Download, RotateCcw, ShoppingCart, Eye, Camera, CameraOff, X } from 'lucide-react';
+import {
+  ArrowLeft, Download, RotateCcw, ShoppingCart, Eye, Camera, CameraOff,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { productRecipes } from '@/data/recipes';
 import { useCamera } from '@/hooks/useCamera';
 import { cn } from '@/lib/utils';
 
-type TextureType = 'voronoi' | 'hexagonal' | 'bricks';
+// ── Types ──────────────────────────────────────────────────────────────────────
+
+type PatternType = 'organic' | 'wave' | 'strips' | 'petals' | 'checker' | 'chisel' | 'dots';
 
 interface ControlPoint { x: number; y: number; }
 
+const PATTERN_LABELS: Record<PatternType, string> = {
+  organic:  'Organic noise',
+  wave:     'Wave rings',
+  strips:   'Vertical strips',
+  petals:   'Petals',
+  checker:  'Checker',
+  chisel:   'Chisel facets',
+  dots:     'Raised dots',
+};
+
+// ── Defaults ──────────────────────────────────────────────────────────────────
+
 const DEFAULT_POINTS: ControlPoint[] = [
-  { x: 0, y: 0 },
-  { x: 0.1, y: 0.05 },
-  { x: 0.2, y: 0.25 },
-  { x: 0.13, y: 0.5 },
-  { x: 0.22, y: 0.8 },
-  { x: 0.16, y: 1 }
+  { x: 0,    y: 0    },
+  { x: 0.10, y: 0.05 },
+  { x: 0.20, y: 0.25 },
+  { x: 0.13, y: 0.50 },
+  { x: 0.22, y: 0.80 },
+  { x: 0.16, y: 1.00 },
 ];
 
+// ── Displacement kernels ───────────────────────────────────────────────────────
+// Each function returns a signed scalar in [-1, 1].
+// `theta` ∈ [−π, π], `ny` ∈ [0, 1] (normalised height), `sx/sy` are UI scale params.
+
+function displace(
+  pattern: PatternType,
+  theta: number,
+  ny: number,
+  sx: number,
+  sy: number,
+): number {
+  const T = theta; // angle around axis
+  const Y = ny;    // normalised height 0→1
+
+  switch (pattern) {
+    case 'organic': {
+      // Multi-frequency sine lattice that looks hand-formed.
+      const a = Math.sin(T * sx + Y * sy * 0.7) * Math.cos(T * sx * 0.6 - Y * sy * 1.1);
+      const b = Math.sin(T * sx * 1.9 + Y * sy * 0.4) * 0.45;
+      const c = Math.cos(T * sx * 0.5 + Y * sy * 1.8) * 0.3;
+      return (a + b + c) / 1.75;
+    }
+    case 'wave': {
+      // Pure horizontal sine rings — no theta dependence.
+      return Math.sin(Y * sy * Math.PI * 2 + Math.PI * 0.5) *
+             (0.6 + 0.4 * Math.cos(T * sx * 0.5));
+    }
+    case 'strips': {
+      // Sharp vertical ridges: triangular wave in theta, smooth in height.
+      const raw = Math.sin(T * sx);
+      // Sharpen with sign + soft clamp for crease-like ridges.
+      const sharp = Math.tanh(raw * 4) * 0.85;
+      // Slight height modulation so they taper toward top/bottom.
+      const hMod = 0.6 + 0.4 * Math.sin(Y * Math.PI);
+      return sharp * hMod;
+    }
+    case 'petals': {
+      // Rounded lobes: theta cosine raised to an even power × bell in height.
+      const numPetals = Math.max(2, Math.round(sx));
+      const thetaBump = Math.pow(Math.cos(T * numPetals), 2);
+      const heightBell = Math.sin(Y * sy * Math.PI * 0.5 + 0.2);
+      return (thetaBump * heightBell * 2 - 0.5);
+    }
+    case 'checker': {
+      // Checkerboard tiles: sign-product of sine in theta and height.
+      const tSign = Math.sign(Math.sin(T * sx));
+      const ySign = Math.sign(Math.sin(Y * sy * Math.PI));
+      return tSign * ySign * 0.9;
+    }
+    case 'chisel': {
+      // Triangular wave (sawtooth blended) in theta → angular facets.
+      // frac = 0→1 within each tooth
+      const period = (2 * Math.PI) / Math.max(1, sx);
+      const frac = ((T % period) + period) % period / period;
+      // Triangular wave: 0→1→0
+      const tri = frac < 0.5 ? frac * 2 : (1 - frac) * 2;
+      // Height-based shading so facets catch light differently at each ring.
+      const yFade = 0.5 + 0.5 * Math.cos(Y * sy * Math.PI);
+      return (tri * 2 - 1) * (0.6 + 0.4 * yFade);
+    }
+    case 'dots': {
+      // Raised hemispherical bumps on a cylindrical grid.
+      const cols = Math.max(2, Math.round(sx));          // bumps around circumference
+      const rows = Math.max(1, Math.round(sy));           // bump rows up the height
+      const dotRadius = Math.PI / (cols * 1.4);           // angular half-width of each bump
+      const thetaNorm = ((T + Math.PI) / (2 * Math.PI)); // 0..1
+      const cellT = (thetaNorm * cols) % 1;              // fraction inside column cell
+      const cellY = (Y * rows) % 1;                      // fraction inside row cell
+      // Map cell fractions to signed distance from cell centre.
+      const dT = (cellT - 0.5) * (2 * Math.PI / cols);  // radians offset from centre
+      const dY = (cellY - 0.5) * (1 / rows);            // normalised offset from centre
+      const distSq = dT * dT + (dY * Math.PI) ** 2;
+      const r = Math.sqrt(distSq) / dotRadius;
+      return r < 1 ? Math.cos(r * Math.PI * 0.5) ** 2 * 2 - 1 : -0.15;
+    }
+    default:
+      return 0;
+  }
+}
+
+// ── Component ──────────────────────────────────────────────────────────────────
+
 const VesselGenerator = () => {
-  const location = useLocation();
   const navigate = useNavigate();
   const mountRef = useRef<HTMLDivElement | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const meshRef = useRef<THREE.Mesh | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
 
-  const recipe = location.state?.recipe || productRecipes.find(r => r.id === 'ceramic-vessel');
-
+  // Profile curve
   const [points, setPoints] = useState<ControlPoint[]>(DEFAULT_POINTS);
   const [selectedPoint, setSelectedPoint] = useState<number | null>(null);
+
+  // Shape
   const [segments, setSegments] = useState(128);
   const [heightScale, setHeightScale] = useState(1);
   const [radiusScale, setRadiusScale] = useState(1);
-  const [textureType, setTextureType] = useState<TextureType>('voronoi');
-  const [textureScaleX, setTextureScaleX] = useState(8);
-  const [textureScaleY, setTextureScaleY] = useState(8);
-  const [textureScaleZ, setTextureScaleZ] = useState(8);
-  const [textureStrength, setTextureStrength] = useState(0.02);
-  const [material, setMaterial] = useState(recipe?.materials[0] || 'porcelain');
-  const [quantity, setQuantity] = useState(1);
   const [splineSmoothness, setSplineSmoothness] = useState(0.5);
-  const [arMode, setArMode] = useState(false);
 
+  // Surface
+  const [pattern, setPattern] = useState<PatternType>('organic');
+  const [scaleX, setScaleX] = useState(8);   // angular frequency / count
+  const [scaleY, setScaleY] = useState(8);   // height frequency / count
+  const [strength, setStrength] = useState(0.025);
+  const [twist, setTwist] = useState(0);     // total twist in radians
+
+  // AR
+  const [arMode, setArMode] = useState(false);
   const { videoRef, isActive: cameraActive, error: cameraError, start: startCamera, stop: stopCamera } = useCamera();
 
-  // Toggle AR mode
-  const toggleAR = async () => {
-    if (arMode) {
-      setArMode(false);
-      stopCamera();
-      // Restore opaque background
-      if (sceneRef.current && rendererRef.current) {
-        sceneRef.current.background = new THREE.Color('#c9d0d6');
-        rendererRef.current.setClearAlpha(1);
-      }
-    } else {
-      const started = await startCamera();
-      if (!started) return;
-      setArMode(true);
-      // Make scene transparent for AR overlay
-      if (sceneRef.current && rendererRef.current) {
-        sceneRef.current.background = null;
-        rendererRef.current.setClearAlpha(0);
-      }
-    }
-  };
+  // ── Curve helpers ──────────────────────────────────────────────────────────
 
-  const smoothCurvePoints = useMemo(() => {
+  const lathePoints = useMemo<THREE.Vector2[]>(() => {
     if (points.length < 2) return [];
-    const splinePoints = points.map((p, i) => {
-      const radius = i === 0 ? 0 : Math.max(0.001, p.x * radiusScale);
-      return new THREE.Vector3(radius, p.y * heightScale, 0);
-    });
-    const curve = new THREE.CatmullRomCurve3(splinePoints, false, 'catmullrom', splineSmoothness);
-    const sampled = curve.getPoints(100);
-    return sampled.map(p => new THREE.Vector2(p.x, p.y));
+    const spline = points.map((p, i) => new THREE.Vector3(
+      i === 0 ? 0 : Math.max(0.001, p.x * radiusScale),
+      p.y * heightScale,
+      0,
+    ));
+    const curve = new THREE.CatmullRomCurve3(spline, false, 'catmullrom', splineSmoothness);
+    return curve.getPoints(100).map(p => new THREE.Vector2(p.x, p.y));
   }, [points, heightScale, radiusScale, splineSmoothness]);
 
-  const curvePoints = useMemo(() => {
-    return points.map((p, i) => {
-      const radius = i === 0 ? 0 : Math.max(0.01, p.x * radiusScale);
-      return new THREE.Vector2(radius, p.y * heightScale);
-    });
-  }, [points, heightScale, radiusScale]);
+  // ── Geometry builder ────────────────────────────────────────────────────────
+  // Returns a new BufferGeometry with displacement + twist applied.
 
-  // Initialize Three.js
+  const buildGeometry = (): THREE.BufferGeometry => {
+    const base = new THREE.LatheGeometry(lathePoints, segments);
+    const pos = base.attributes.position as THREE.Float32BufferAttribute;
+
+    // Height extent for twist normalisation.
+    let maxY = 0;
+    for (let i = 0; i < pos.count; i++) maxY = Math.max(maxY, pos.getY(i));
+    if (maxY === 0) maxY = 1;
+
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i);
+      const y = pos.getY(i);
+      const z = pos.getZ(i);
+
+      const r = Math.sqrt(x * x + z * z);
+      const theta = Math.atan2(z, x);
+      const ny = y / maxY; // normalised height
+
+      // 1. Displacement in radial direction.
+      const d = displace(pattern, theta, ny, scaleX, scaleY);
+      const rNew = Math.max(0.001, r + d * strength);
+
+      // 2. Twist applied AFTER displacement (avoids displacing a pre-twisted surface).
+      const thetaNew = theta + twist * ny;
+
+      pos.setXYZ(i, Math.cos(thetaNew) * rNew, y, Math.sin(thetaNew) * rNew);
+    }
+
+    base.computeVertexNormals();
+    return base;
+  };
+
+  // ── Three.js scene initialisation ──────────────────────────────────────────
+
   useEffect(() => {
     if (!mountRef.current) return;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#c9d0d6');
+    scene.background = null; // transparent; backdrop drawn by CSS
     sceneRef.current = scene;
 
-    const camera = new THREE.PerspectiveCamera(50, mountRef.current.clientWidth / mountRef.current.clientHeight, 0.1, 100);
+    const w = mountRef.current.clientWidth;
+    const h = mountRef.current.clientHeight;
+    const camera = new THREE.PerspectiveCamera(50, w / h, 0.1, 100);
     camera.position.set(2, 1.2, 2);
+    cameraRef.current = camera;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
+    renderer.setSize(w, h);
     renderer.shadowMap.enabled = true;
     mountRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.7);
-    const dir = new THREE.DirectionalLight(0xffffff, 1.2);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+    const dir = new THREE.DirectionalLight(0xffffff, 1.4);
     dir.position.set(5, 8, 6);
     dir.castShadow = true;
-    scene.add(ambient, dir);
+    scene.add(dir);
+    const fill = new THREE.DirectionalLight(0x94a3b8, 0.5);
+    fill.position.set(-5, 3, -5);
+    scene.add(fill);
+    const rim = new THREE.DirectionalLight(0xffd9b0, 0.35);
+    rim.position.set(0, -4, -6);
+    scene.add(rim);
 
-    const fillLight = new THREE.DirectionalLight(0x94a3b8, 0.4);
-    fillLight.position.set(-5, 3, -5);
-    scene.add(fillLight);
-
-    const grid = new THREE.GridHelper(4, 20, 0xb0b8c4, 0xd4dbe3);
+    const grid = new THREE.GridHelper(4, 20, 0x9ba3b0, 0xc4cbda);
     scene.add(grid);
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.enablePan = true;
-    controls.minDistance = 1;
-    controls.maxDistance = 5;
+    controls.minDistance = 0.8;
+    controls.maxDistance = 6;
     controlsRef.current = controls;
 
     const mat = new THREE.MeshStandardMaterial({
       color: '#d4a574',
-      metalness: 0.1,
-      roughness: 0.5,
+      metalness: 0.05,
+      roughness: 0.48,
       side: THREE.DoubleSide,
     });
 
-    const geometry = new THREE.LatheGeometry(curvePoints, segments);
-    const mesh = new THREE.Mesh(geometry, mat);
+    const geo = buildGeometry();
+    const mesh = new THREE.Mesh(geo, mat);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     meshRef.current = mesh;
     scene.add(mesh);
 
+    let animId: number;
     const animate = () => {
+      animId = requestAnimationFrame(animate);
       controls.update();
       renderer.render(scene, camera);
-      requestAnimationFrame(animate);
     };
     animate();
 
     const onResize = () => {
-      if (!mountRef.current) return;
-      camera.aspect = mountRef.current.clientWidth / mountRef.current.clientHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
+      if (!mountRef.current || !rendererRef.current || !cameraRef.current) return;
+      const w2 = mountRef.current.clientWidth;
+      const h2 = mountRef.current.clientHeight;
+      cameraRef.current.aspect = w2 / h2;
+      cameraRef.current.updateProjectionMatrix();
+      rendererRef.current.setSize(w2, h2);
     };
     window.addEventListener('resize', onResize);
 
     return () => {
+      cancelAnimationFrame(animId);
       window.removeEventListener('resize', onResize);
       controls.dispose();
-      geometry.dispose();
+      geo.dispose();
       mat.dispose();
       renderer.dispose();
       if (mountRef.current && renderer.domElement.parentNode === mountRef.current) {
         mountRef.current.removeChild(renderer.domElement);
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Update geometry
+  // ── Rebuild geometry on param change ──────────────────────────────────────
+
   useEffect(() => {
     if (!meshRef.current) return;
-    const geometry = new THREE.LatheGeometry(curvePoints, segments);
-    const pos = geometry.attributes.position;
-
-    for (let i = 0; i < pos.count; i += 1) {
-      const x = pos.getX(i);
-      const y = pos.getY(i);
-      const z = pos.getZ(i);
-      const radial = Math.sqrt(x * x + z * z);
-      const theta = Math.atan2(z, x);
-
-      let noise = 0;
-      const u = theta * textureScaleX;
-      const v = y * textureScaleY;
-      const w = radial * textureScaleZ;
-
-      if (textureType === 'voronoi') {
-        noise = Math.sin(u) * Math.cos(v) * 0.5 + Math.sin(u * 1.7 + v * 0.8) * 0.5;
-        noise += Math.sin(w * 0.5) * 0.3;
-      } else if (textureType === 'hexagonal') {
-        noise = Math.cos(u) + Math.cos(0.5 * u + 0.866 * v) + Math.cos(0.5 * u - 0.866 * v);
-        noise /= 3;
-        noise += Math.sin(w) * 0.2;
-      } else {
-        const brick = (Math.sin(u * 0.7 + Math.floor(v) * 0.8) > 0 ? 1 : -1) * 0.5;
-        noise = brick + Math.sin(v * 2.4) * 0.2;
-        noise += Math.cos(w) * 0.15;
-      }
-
-      const displaced = radial + noise * textureStrength;
-      pos.setXYZ(i, Math.cos(theta) * displaced, y, Math.sin(theta) * displaced);
-    }
-
-    geometry.computeVertexNormals();
+    const newGeo = buildGeometry();
     meshRef.current.geometry.dispose();
-    meshRef.current.geometry = geometry;
-  }, [curvePoints, segments, textureScaleX, textureScaleY, textureScaleZ, textureStrength, textureType]);
+    meshRef.current.geometry = newGeo;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lathePoints, segments, pattern, scaleX, scaleY, strength, twist]);
 
-  const downloadModel = () => {
+  // ── AR toggle ─────────────────────────────────────────────────────────────
+
+  const toggleAR = async () => {
+    if (arMode) {
+      setArMode(false);
+      stopCamera();
+    } else {
+      const ok = await startCamera();
+      if (!ok) return;
+      setArMode(true);
+    }
+  };
+
+  // ── Dimensions ────────────────────────────────────────────────────────────
+
+  const dims = useMemo(() => {
+    let maxR = 0, maxH = 0;
+    lathePoints.forEach(p => {
+      if (p.x > maxR) maxR = p.x;
+      if (p.y > maxH) maxH = p.y;
+    });
+    // Surface area approximation
+    let sa = 0;
+    for (let i = 0; i < lathePoints.length - 1; i++) {
+      const p1 = lathePoints[i], p2 = lathePoints[i + 1];
+      const dy = p2.y - p1.y, dr = p2.x - p1.x, rAvg = (p1.x + p2.x) / 2;
+      sa += 2 * Math.PI * rAvg * Math.sqrt(dy * dy + dr * dr);
+    }
+    sa += Math.PI * maxR * maxR; // base
+    sa *= 1 + strength * 3;     // texture area multiplier
+    return {
+      w: maxR * 2 * 100,
+      h: maxH * 100,
+      d: maxR * 2 * 100,
+      sa: sa * 10000,
+    };
+  }, [lathePoints, strength]);
+
+  // ── Export ────────────────────────────────────────────────────────────────
+
+  const downloadSTL = () => {
     if (!meshRef.current) return;
     const exporter = new STLExporter();
-    const stlString = exporter.parse(meshRef.current, { binary: false }) as string;
-    const blob = new Blob([stlString], { type: 'model/stl' });
+    const blob = new Blob([exporter.parse(meshRef.current, { binary: false }) as string], { type: 'model/stl' });
     const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = 'ceramic-vessel.stl';
-    anchor.click();
+    const a = document.createElement('a');
+    a.href = url; a.download = 'ceramic-vessel.stl'; a.click();
     URL.revokeObjectURL(url);
   };
+
+  const sendToViewer = () => {
+    if (!meshRef.current) return;
+    // Use in-memory transfer to avoid sessionStorage quota limits.
+    const geo = meshRef.current.geometry as THREE.BufferGeometry;
+    (window as any).__transferGeometry = geo.toJSON();
+    navigate('/', { state: { fromVessel: true, recipe: 'vessel' } });
+  };
+
+  // ── Reset ─────────────────────────────────────────────────────────────────
 
   const resetAll = () => {
     setPoints(DEFAULT_POINTS);
     setSegments(128);
     setHeightScale(1);
     setRadiusScale(1);
-    setTextureType('voronoi');
-    setTextureScaleX(8);
-    setTextureScaleY(8);
-    setTextureScaleZ(8);
-    setTextureStrength(0.02);
     setSplineSmoothness(0.5);
+    setPattern('organic');
+    setScaleX(8);
+    setScaleY(8);
+    setStrength(0.025);
+    setTwist(0);
     setSelectedPoint(null);
   };
 
-  const calculateSurfaceAndDimensions = useMemo(() => {
-    const curveToUse = smoothCurvePoints.length > 0 ? smoothCurvePoints : curvePoints;
-    let maxRadius = 0, maxHeight = 0;
-    curveToUse.forEach(p => {
-      if (p.x > maxRadius) maxRadius = p.x;
-      if (p.y > maxHeight) maxHeight = p.y;
-    });
-    let surfaceArea = 0;
-    for (let i = 0; i < curveToUse.length - 1; i++) {
-      const p1 = curveToUse[i], p2 = curveToUse[i + 1];
-      const dy = p2.y - p1.y, dr = p2.x - p1.x, rAvg = (p1.x + p2.x) / 2;
-      surfaceArea += 2 * Math.PI * rAvg * Math.sqrt(dy * dy + dr * dr);
-    }
-    const baseArea = Math.PI * maxRadius * maxRadius;
-    const textureAreaMultiplier = 1 + textureStrength * 2;
-    return {
-      width: maxRadius * 2 * 100,
-      height: maxHeight * 100,
-      depth: maxRadius * 2 * 100,
-      surfaceArea: (surfaceArea + baseArea) * textureAreaMultiplier * 10000,
-    };
-  }, [points, smoothCurvePoints, curvePoints, heightScale, radiusScale, textureStrength]);
+  // ── Shared slider row ──────────────────────────────────────────────────────
 
-  const getSTLData = (): string | null => {
-    if (!meshRef.current) return null;
-    const exporter = new STLExporter();
-    return exporter.parse(meshRef.current, { binary: false }) as string;
-  };
-
-  const viewInMaterialViewer = () => {
-    if (!meshRef.current) return;
-    const stlString = getSTLData();
-    if (!stlString) return;
-    sessionStorage.setItem('vesselSTL', stlString);
-    navigate('/', { state: { fromVessel: true, recipe: 'vessel' } });
-  };
-
-  // Slider row helper
-  const SliderRow = ({ label, value, onChange, min, max, step, suffix = '' }: {
-    label: string; value: number; onChange: (v: number) => void; min: number; max: number; step: number; suffix?: string;
-  }) => (
-    <div className="space-y-1.5">
-      <div className="flex justify-between text-xs">
-        <span className="text-black/50">{label}</span>
-        <span className="text-black/80 font-medium">{value.toFixed(step < 0.1 ? (step < 0.01 ? 3 : 2) : 1)}{suffix}</span>
+  const SliderRow = ({
+    label, value, onChange, min, max, step, suffix = '', decimals,
+  }: {
+    label: string; value: number; onChange: (v: number) => void;
+    min: number; max: number; step: number; suffix?: string; decimals?: number;
+  }) => {
+    const dp = decimals ?? (step < 0.01 ? 3 : step < 0.1 ? 2 : step < 1 ? 1 : 0);
+    return (
+      <div className="space-y-1.5">
+        <div className="flex justify-between text-xs">
+          <span className="text-muted-foreground">{label}</span>
+          <span className="text-foreground font-medium">{value.toFixed(dp)}{suffix}</span>
+        </div>
+        <Slider value={[value]} onValueChange={([v]) => onChange(v)} min={min} max={max} step={step} />
       </div>
-      <Slider value={[value]} onValueChange={([v]) => onChange(v)} min={min} max={max} step={step} />
-    </div>
-  );
+    );
+  };
+
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen w-full overflow-hidden relative" style={{ background: '#c9d0d6' }}>
-      {/* Background effects matching RecipeGallery */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.35),transparent_55%)] pointer-events-none" />
-      <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent opacity-70 pointer-events-none z-20" />
-      <div className="absolute top-[120px] right-0 w-[220px] h-[1px] bg-gradient-to-r from-fuchsia-400 via-cyan-300 to-yellow-300 opacity-70 blur-[1px] rotate-[-12deg] pointer-events-none" />
-      <div className="absolute bottom-[180px] left-[10%] w-[320px] h-[2px] bg-gradient-to-r from-violet-400 via-pink-300 to-cyan-300 opacity-60 blur-[2px] rotate-[8deg] pointer-events-none" />
-      {/* Grid overlay */}
-      <div className="absolute inset-0 opacity-30 pointer-events-none">
-        <div className="absolute top-0 left-0 w-full h-full bg-[linear-gradient(rgba(255,255,255,0.12)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.12)_1px,transparent_1px)] bg-[size:80px_80px]" />
-      </div>
+    <div className="flex h-screen w-full overflow-hidden relative bg-secondary">
+      {/* Subtle aero background accents */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_60%_10%,hsl(var(--primary)/0.07),transparent_60%)] pointer-events-none" />
+      <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-primary/40 to-transparent pointer-events-none z-20" />
 
-      {/* Left Panel - Glass Controls */}
-      <aside className="relative z-10 w-[360px] shrink-0 overflow-y-auto border-r border-white/30 bg-white/25 backdrop-blur-2xl p-5">
+      {/* ── Left panel ── */}
+      <aside className="relative z-10 w-[320px] lg:w-[360px] shrink-0 overflow-y-auto border-r border-border bg-card/80 backdrop-blur-xl p-5 flex flex-col gap-4">
+
         {/* Header */}
-        <div className="mb-5 flex items-center justify-between">
+        <div className="flex items-center justify-between">
           <div>
-            <div className="text-[10px] uppercase tracking-[0.4em] text-black/45">Recipe · Procedural</div>
-            <h1 className="text-xl font-light tracking-tight text-[#111] mt-1">Ceramic Vessel</h1>
+            <p className="text-[10px] uppercase tracking-[0.35em] text-muted-foreground">Recipe · Procedural</p>
+            <h1 className="text-xl font-semibold tracking-tight text-foreground mt-0.5">Ceramic Vessel</h1>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate('/')}
-            className="text-black/50 hover:text-black hover:bg-black/5 rounded-full"
-          >
+          <Button variant="ghost" size="icon" onClick={() => navigate('/')} aria-label="Back to gallery">
             <ArrowLeft className="w-4 h-4" />
           </Button>
         </div>
 
         {/* Profile Curve Editor */}
-        <div className="mb-5">
-          <h2 className="mb-2 text-xs font-medium text-black/55 uppercase tracking-wider">Profile Curve</h2>
-          <div className="rounded-2xl bg-white/40 backdrop-blur-xl p-3 border border-white/50 shadow-[0_8px_32px_rgba(0,0,0,0.06)]">
-            <svg viewBox="0 0 220 280" className="h-[240px] w-full">
-              <line x1="0" y1="0" x2="220" y2="0" stroke="rgba(0,0,0,0.08)" strokeWidth="0.5" />
-              <line x1="0" y1="140" x2="220" y2="140" stroke="rgba(0,0,0,0.08)" strokeWidth="0.5" />
-              <line x1="0" y1="280" x2="220" y2="280" stroke="rgba(0,0,0,0.08)" strokeWidth="0.5" />
-              <line x1="0" y1="0" x2="0" y2="280" stroke="rgba(0,0,0,0.1)" strokeWidth="1" strokeDasharray="4" />
+        <section className="space-y-2">
+          <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Profile Curve</Label>
+          <div className="rounded-xl bg-background/60 border border-border p-3 shadow-card">
+            <svg viewBox="0 0 220 280" className="h-[200px] w-full">
+              {/* Guide lines */}
+              {[0, 140, 280].map(y => (
+                <line key={y} x1="0" y1={y} x2="220" y2={y} stroke="currentColor" strokeOpacity="0.08" strokeWidth="0.5" />
+              ))}
+              <line x1="0" y1="0" x2="0" y2="280" stroke="currentColor" strokeOpacity="0.1" strokeWidth="1" strokeDasharray="4" />
+              {/* Curve */}
               <polyline
-                points={points.map((p) => `${p.x * 220},${(1 - p.y) * 280}`).join(' ')}
+                points={points.map(p => `${p.x * 220},${(1 - p.y) * 280}`).join(' ')}
                 fill="none"
-                stroke="#d4a574"
+                stroke="hsl(var(--primary))"
                 strokeWidth={2}
               />
-              <circle cx={0} cy={280} r={7} fill="#22c55e" stroke="white" strokeWidth={1.5} />
-              <text x="12" y="284" fill="#22c55e" fontSize="9">Base</text>
+              {/* Base point (fixed) */}
+              <circle cx={0} cy={280} r={7} fill="hsl(var(--accent-foreground)/0.7)" stroke="white" strokeWidth={1.5} />
+              <text x="11" y="284" fill="hsl(var(--muted-foreground))" fontSize="9">base</text>
+              {/* Control points */}
               {points.map((p, idx) => idx === 0 ? null : (
                 <circle
                   key={idx}
                   cx={p.x * 220}
                   cy={(1 - p.y) * 280}
-                  r={selectedPoint === idx ? 9 : 6}
-                  fill={selectedPoint === idx ? '#f59e0b' : '#d4a574'}
+                  r={selectedPoint === idx ? 8 : 5.5}
+                  fill={selectedPoint === idx ? 'hsl(var(--primary))' : 'hsl(var(--primary)/0.55)'}
                   stroke="white"
                   strokeWidth={1.5}
-                  className="cursor-pointer transition-all hover:fill-amber-500"
+                  className="cursor-pointer transition-all hover:fill-primary"
                   onClick={() => setSelectedPoint(selectedPoint === idx ? null : idx)}
                 />
               ))}
@@ -353,173 +455,151 @@ const VesselGenerator = () => {
           </div>
 
           {selectedPoint !== null && selectedPoint > 0 && (
-            <div className="mt-3 space-y-3 rounded-2xl bg-white/40 backdrop-blur-xl p-3 border border-white/50">
+            <div className="rounded-xl bg-background/60 border border-border p-3 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-black/50">Point {selectedPoint}</span>
-                <button onClick={() => setSelectedPoint(null)} className="text-black/30 hover:text-black text-lg leading-none">×</button>
+                <span className="text-xs text-muted-foreground">Point {selectedPoint}</span>
+                <button onClick={() => setSelectedPoint(null)} className="text-muted-foreground hover:text-foreground text-lg leading-none">×</button>
               </div>
-              <SliderRow label="Radius" value={points[selectedPoint].x} onChange={(v) => setPoints(prev => prev.map((p, i) => i === selectedPoint ? { ...p, x: v } : p))} min={0.05} max={0.4} step={0.005} />
-              <SliderRow label="Height" value={points[selectedPoint].y} onChange={(v) => setPoints(prev => prev.map((p, i) => i === selectedPoint ? { ...p, y: v } : p))} min={0} max={1} step={0.005} />
+              <SliderRow
+                label="Radius" value={points[selectedPoint].x}
+                onChange={v => setPoints(prev => prev.map((p, i) => i === selectedPoint ? { ...p, x: v } : p))}
+                min={0.02} max={0.42} step={0.005}
+              />
+              <SliderRow
+                label="Height" value={points[selectedPoint].y}
+                onChange={v => setPoints(prev => prev.map((p, i) => i === selectedPoint ? { ...p, y: v } : p))}
+                min={0} max={1} step={0.005}
+              />
             </div>
           )}
-        </div>
+        </section>
 
-        {/* Shape Parameters */}
-        <div className="mb-5 rounded-2xl bg-white/35 backdrop-blur-xl p-4 border border-white/50 shadow-[0_8px_32px_rgba(0,0,0,0.04)] space-y-4">
-          <h2 className="text-xs font-medium text-black/55 uppercase tracking-wider">Shape</h2>
+        {/* Shape */}
+        <section className="rounded-xl bg-background/60 border border-border p-4 space-y-4">
+          <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Shape</Label>
           <SliderRow label="Segments" value={segments} onChange={setSegments} min={32} max={256} step={8} />
-          <SliderRow label="Height Scale" value={heightScale} onChange={setHeightScale} min={0.6} max={1.8} step={0.01} />
-          <SliderRow label="Radius Scale" value={radiusScale} onChange={setRadiusScale} min={0.5} max={1.8} step={0.01} />
-          <SliderRow label="Spline Smoothness" value={splineSmoothness} onChange={setSplineSmoothness} min={0} max={1} step={0.01} />
-        </div>
+          <SliderRow label="Height scale" value={heightScale} onChange={setHeightScale} min={0.5} max={2.0} step={0.01} />
+          <SliderRow label="Radius scale" value={radiusScale} onChange={setRadiusScale} min={0.3} max={2.0} step={0.01} />
+          <SliderRow label="Spline tension" value={splineSmoothness} onChange={setSplineSmoothness} min={0} max={1} step={0.01} />
+        </section>
 
-        {/* Texture */}
-        <div className="mb-5 rounded-2xl bg-white/35 backdrop-blur-xl p-4 border border-white/50 shadow-[0_8px_32px_rgba(0,0,0,0.04)] space-y-4">
-          <h2 className="text-xs font-medium text-black/55 uppercase tracking-wider">Surface Texture</h2>
+        {/* Surface */}
+        <section className="rounded-xl bg-background/60 border border-border p-4 space-y-4">
+          <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Surface pattern</Label>
+
           <div className="space-y-1.5">
-            <span className="text-xs text-black/50">Pattern</span>
-            <Select value={textureType} onValueChange={(v) => setTextureType(v as TextureType)}>
-              <SelectTrigger className="bg-white/50 border-white/60 text-black/80 rounded-xl h-9 text-sm">
+            <span className="text-xs text-muted-foreground">Pattern</span>
+            <Select value={pattern} onValueChange={v => setPattern(v as PatternType)}>
+              <SelectTrigger className="h-9 text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="voronoi">Voronoi Pattern</SelectItem>
-                <SelectItem value="hexagonal">Hexagonal Grid</SelectItem>
-                <SelectItem value="bricks">Brick Pattern</SelectItem>
+                {(Object.keys(PATTERN_LABELS) as PatternType[]).map(k => (
+                  <SelectItem key={k} value={k}>{PATTERN_LABELS[k]}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
-          <SliderRow label="Scale X" value={textureScaleX} onChange={setTextureScaleX} min={2} max={30} step={0.5} />
-          <SliderRow label="Scale Y" value={textureScaleY} onChange={setTextureScaleY} min={2} max={30} step={0.5} />
-          <SliderRow label="Scale Z" value={textureScaleZ} onChange={setTextureScaleZ} min={2} max={30} step={0.5} />
-          <SliderRow label="Relief" value={textureStrength} onChange={setTextureStrength} min={0} max={0.08} step={0.001} suffix="mm" />
-        </div>
 
-        {/* Material & Quantity */}
-        <div className="mb-5 rounded-2xl bg-white/35 backdrop-blur-xl p-4 border border-white/50 shadow-[0_8px_32px_rgba(0,0,0,0.04)] space-y-4">
-          <h2 className="text-xs font-medium text-black/55 uppercase tracking-wider">Options</h2>
-          {recipe && (
-            <div className="space-y-1.5">
-              <span className="text-xs text-black/50">Material</span>
-              <Select value={material} onValueChange={setMaterial}>
-                <SelectTrigger className="bg-white/50 border-white/60 text-black/80 rounded-xl h-9 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {recipe.materials.map((m: string) => (
-                    <SelectItem key={m} value={m}>{m.charAt(0).toUpperCase() + m.slice(1)}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-          <div className="space-y-1.5">
-            <span className="text-xs text-black/50">Quantity</span>
-            <div className="flex items-center gap-3">
-              <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-9 h-9 rounded-xl bg-white/50 border border-white/60 text-black/60 hover:bg-white/70 flex items-center justify-center text-lg">-</button>
-              <span className="text-black/80 font-medium w-8 text-center">{quantity}</span>
-              <button onClick={() => setQuantity(quantity + 1)} className="w-9 h-9 rounded-xl bg-white/50 border border-white/60 text-black/60 hover:bg-white/70 flex items-center justify-center text-lg">+</button>
-            </div>
-          </div>
-        </div>
+          <SliderRow label="Frequency / count (angular)" value={scaleX} onChange={setScaleX} min={1} max={32} step={0.5} decimals={1} />
+          <SliderRow label="Frequency / count (height)" value={scaleY} onChange={setScaleY} min={1} max={24} step={0.5} decimals={1} />
+          <SliderRow label="Relief depth" value={strength} onChange={setStrength} min={0} max={0.12} step={0.001} suffix=" mm" />
+          <SliderRow label="Twist" value={twist} onChange={setTwist} min={-Math.PI * 2} max={Math.PI * 2} step={0.05} suffix="°" decimals={1} />
+        </section>
 
         {/* Dimensions */}
-        <div className="mb-5 rounded-2xl bg-white/35 backdrop-blur-xl p-4 border border-white/50 shadow-[0_8px_32px_rgba(0,0,0,0.04)]">
-          <h2 className="text-xs font-medium text-black/55 uppercase tracking-wider mb-3">Dimensions</h2>
-          <div className="grid grid-cols-3 gap-2 text-center mb-3">
-            {[
-              ['W', calculateSurfaceAndDimensions.width],
-              ['H', calculateSurfaceAndDimensions.height],
-              ['D', calculateSurfaceAndDimensions.depth],
-            ].map(([label, val]) => (
-              <div key={label as string} className="rounded-xl bg-white/40 p-2">
-                <p className="text-black/40 text-[10px] uppercase">{label}</p>
-                <p className="text-black/80 font-medium text-sm">{(val as number).toFixed(1)}<span className="text-[10px] text-black/40">mm</span></p>
+        <section className="rounded-xl bg-background/60 border border-border p-4 space-y-3">
+          <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Dimensions</Label>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            {([['W', dims.w], ['H', dims.h], ['D', dims.d]] as [string, number][]).map(([l, v]) => (
+              <div key={l} className="rounded-lg bg-secondary/60 p-2">
+                <p className="text-[10px] uppercase text-muted-foreground">{l}</p>
+                <p className="text-foreground font-semibold text-sm">{v.toFixed(1)}<span className="text-[10px] text-muted-foreground"> mm</span></p>
               </div>
             ))}
           </div>
-          <div className="flex justify-between text-xs border-t border-black/5 pt-2">
-            <span className="text-black/40">Surface Area</span>
-            <span className="text-black/70 font-medium">{(calculateSurfaceAndDimensions.surfaceArea / 100).toFixed(2)} cm²</span>
+          <div className="flex justify-between text-xs border-t border-border pt-2">
+            <span className="text-muted-foreground">Surface area</span>
+            <span className="text-foreground font-medium">{(dims.sa / 100).toFixed(1)} cm²</span>
           </div>
-        </div>
+        </section>
 
         {/* Actions */}
-        <div className="space-y-2">
+        <section className="space-y-2 mt-auto">
           <div className="flex gap-2">
-            <Button onClick={resetAll} variant="outline" className="flex-1 rounded-xl bg-white/40 border-white/50 text-black/60 hover:bg-white/60 hover:text-black">
-              <RotateCcw className="w-3.5 h-3.5 mr-1.5" /> Reset
+            <Button onClick={resetAll} variant="outline" className="flex-1 gap-1.5 text-sm">
+              <RotateCcw className="w-3.5 h-3.5" /> Reset
             </Button>
-            <Button onClick={downloadModel} variant="outline" className="flex-1 rounded-xl bg-white/40 border-white/50 text-black/60 hover:bg-white/60 hover:text-black">
-              <Download className="w-3.5 h-3.5 mr-1.5" /> STL
+            <Button onClick={downloadSTL} variant="outline" className="flex-1 gap-1.5 text-sm">
+              <Download className="w-3.5 h-3.5" /> STL
             </Button>
           </div>
           <div className="flex gap-2">
-            <Button onClick={viewInMaterialViewer} variant="outline" className="flex-1 rounded-xl bg-white/40 border-white/50 text-black/60 hover:bg-white/60 hover:text-black">
-              <Eye className="w-3.5 h-3.5 mr-1.5" /> 3D View
+            <Button onClick={sendToViewer} variant="outline" className="flex-1 gap-1.5 text-sm">
+              <Eye className="w-3.5 h-3.5" /> 3D View
             </Button>
-            <Button onClick={viewInMaterialViewer} className="flex-1 rounded-xl bg-[#1f2328] text-white hover:bg-[#1f2328]/90">
-              <ShoppingCart className="w-3.5 h-3.5 mr-1.5" /> Checkout
+            <Button onClick={sendToViewer} className="flex-1 gap-1.5 text-sm">
+              <ShoppingCart className="w-3.5 h-3.5" /> Checkout
             </Button>
           </div>
-        </div>
+        </section>
       </aside>
 
-      {/* Right Panel - 3D Viewport */}
-      <main className="flex-1 relative z-10">
-        {/* Camera video behind canvas */}
+      {/* ── Right: 3D viewport ── */}
+      <main className="flex-1 relative z-10 bg-viewport overflow-hidden">
+        {/* Camera video (AR mode or blurred backdrop) */}
         <video
           ref={videoRef}
           playsInline
           muted
           className={cn(
-            "absolute inset-0 w-full h-full object-cover transition-all duration-700",
-            cameraActive ? "opacity-100" : "opacity-0 pointer-events-none",
-            cameraActive && !arMode ? "blur-xl scale-105" : ""
+            'absolute inset-0 w-full h-full object-cover transition-all duration-700',
+            cameraActive ? 'opacity-100' : 'opacity-0 pointer-events-none',
+            cameraActive && !arMode ? 'blur-xl scale-105' : '',
           )}
         />
 
-        {/* 3D canvas (transparent in AR mode) */}
+        {/* Three.js canvas */}
         <div ref={mountRef} className="absolute inset-0 w-full h-full" />
 
-        {/* AR toggle button */}
-        <div className="absolute top-4 right-4 z-20 flex gap-2">
-          <button
+        {/* AR toggle */}
+        <div className="absolute top-4 right-4 z-20">
+          <Button
+            variant="outline"
             onClick={toggleAR}
             className={cn(
-              "flex items-center gap-2 px-4 py-2.5 rounded-full border backdrop-blur-2xl transition-all duration-300 text-sm font-medium shadow-[0_8px_32px_rgba(0,0,0,0.1)]",
+              'gap-2 rounded-full border backdrop-blur-xl text-sm font-medium shadow-elevated transition-all duration-300',
               arMode
-                ? "bg-black/60 border-white/20 text-white hover:bg-black/70"
-                : "bg-white/40 border-white/50 text-black/70 hover:bg-white/60"
+                ? 'bg-viewport-panel border-viewport-border text-viewport-foreground hover:bg-viewport-control'
+                : 'bg-card/70 border-border/60 hover:bg-card',
             )}
           >
             {arMode ? <CameraOff className="w-4 h-4" /> : <Camera className="w-4 h-4" />}
             {arMode ? 'Exit AR' : 'AR Preview'}
-          </button>
+          </Button>
         </div>
 
-        {/* AR mode indicator */}
         {arMode && (
           <div className="absolute top-4 left-4 z-20">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-xl border border-white/10 text-white text-xs">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-viewport-panel/80 backdrop-blur-xl border border-viewport-border text-viewport-foreground text-xs">
               <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-              AR Mode — Place vessel in real space
+              AR mode — place in real space
             </div>
           </div>
         )}
 
         {cameraError && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded-xl bg-red-500/80 backdrop-blur-xl text-white text-sm">
+          <p className="absolute top-16 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded-xl bg-destructive/80 backdrop-blur-xl text-destructive-foreground text-sm">
             {cameraError}
-          </div>
+          </p>
         )}
 
         {/* Controls hint */}
-        <div className="absolute bottom-4 left-4 right-4 z-10">
-          <div className="inline-flex items-center gap-4 px-4 py-2.5 rounded-full bg-white/30 backdrop-blur-2xl border border-white/40 text-xs text-black/50 shadow-[0_8px_32px_rgba(0,0,0,0.06)]">
-            <span>Drag: Rotate</span>
-            <span>Right-drag: Pan</span>
-            <span>Scroll: Zoom</span>
+        <div className="absolute bottom-4 left-4 z-10">
+          <div className="inline-flex items-center gap-4 px-4 py-2.5 rounded-full bg-viewport-panel/70 backdrop-blur-xl border border-viewport-border text-xs text-viewport-muted">
+            <span>Drag · rotate</span>
+            <span>Right-drag · pan</span>
+            <span>Scroll · zoom</span>
           </div>
         </div>
       </main>
